@@ -4,12 +4,29 @@ exports.detectModules = detectModules;
 exports.findAndKill = findAndKill;
 const child_process_1 = require("child_process");
 const logger_1 = require("./logger");
+const paths_1 = require("./paths");
+const package_1 = require("./package");
 async function detectModules() {
-    // naive detection: try to find processes by name
-    const names = ["a", "b", "c"];
     const out = {};
-    for (const n of ["a", "b", "c"])
-        out[n] = { running: false };
+    for (const name of Object.keys(paths_1.SERVICE_MAP))
+        out[name] = { running: false, installed: false, path: undefined, bin: undefined };
+    for (const name of Object.keys(paths_1.SERVICE_MAP)) {
+        try {
+            const pkgPath = (0, package_1.resolvePackagePath)(paths_1.SERVICE_MAP[name].pkg);
+            if (pkgPath) {
+                out[name].installed = true;
+                out[name].path = pkgPath;
+                try {
+                    const pkgJson = require(require('path').join(pkgPath, 'package.json'));
+                    if (pkgJson && pkgJson.bin) {
+                        out[name].bin = typeof pkgJson.bin === 'string' ? pkgJson.bin : Object.values(pkgJson.bin)[0];
+                    }
+                }
+                catch { }
+            }
+        }
+        catch { }
+    }
     await new Promise((resolve) => {
         (0, child_process_1.exec)(process.platform === "win32" ? "tasklist" : "ps aux", (err, stdout) => {
             if (err) {
@@ -17,7 +34,7 @@ async function detectModules() {
                 return resolve();
             }
             const s = stdout.toString();
-            for (const name of names) {
+            for (const name of Object.keys(paths_1.SERVICE_MAP)) {
                 const regex = new RegExp(name, "i");
                 if (regex.test(s)) {
                     out[name].running = true;
@@ -29,8 +46,7 @@ async function detectModules() {
     return out;
 }
 async function findAndKill() {
-    // naive: find processes that match names and kill them
-    const names = ["a", "b", "c"];
+    const names = Object.keys(paths_1.SERVICE_MAP);
     const killed = [];
     for (const n of names) {
         try {

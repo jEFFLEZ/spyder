@@ -2,9 +2,12 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.spawnSafe = spawnSafe;
 exports.rimrafSync = rimrafSync;
+exports.isPackageInstalled = isPackageInstalled;
+exports.ensurePackageInstalled = ensurePackageInstalled;
 const child_process_1 = require("child_process");
 const logger_1 = require("./logger");
 const fs_1 = require("fs");
+const child_process_2 = require("child_process");
 function spawnSafe(command, args = [], opts = {}) {
     try {
         const proc = (0, child_process_1.spawn)(command, args, { stdio: "inherit", shell: true, ...opts });
@@ -30,5 +33,27 @@ function rimrafSync(path) {
             (0, fs_1.unlinkSync)(path);
         }
         catch { }
+    }
+}
+function isPackageInstalled(pkgName) {
+    try {
+        (0, child_process_2.execSync)(`npm ls ${pkgName} --depth=0`, { stdio: "ignore" });
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+function ensurePackageInstalled(pkgName) {
+    if (isPackageInstalled(pkgName))
+        return true;
+    logger_1.logger.info(`Installing missing package ${pkgName}...`);
+    try {
+        (0, child_process_2.execSync)(`npm install -g ${pkgName}`, { stdio: "inherit" });
+        return true;
+    }
+    catch (err) {
+        logger_1.logger.warn(`Failed to install ${pkgName}: ${err.message}`);
+        return false;
     }
 }

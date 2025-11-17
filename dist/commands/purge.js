@@ -4,8 +4,9 @@ exports.runPurge = runPurge;
 const logger_1 = require("../utils/logger");
 const paths_1 = require("../utils/paths");
 const exec_1 = require("../utils/exec");
+const supervisor_1 = require("../supervisor");
 async function runPurge(opts) {
-    logger_1.logger.info("qflash: purging caches, logs, sessions...");
+    logger_1.logger.info("qflash: purging caches, logs, sessions and supervisor state...");
     const paths = (0, paths_1.resolvePaths)(opts?.detected || {});
     const targets = [];
     for (const key of Object.keys(paths)) {
@@ -26,5 +27,7 @@ async function runPurge(opts) {
             logger_1.logger.warn(`Failed to remove ${t}: ${err}`);
         }
     }
+    // clear supervisor state
+    (0, supervisor_1.clearState)();
     logger_1.logger.info("Purge complete.");
 }
