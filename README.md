@@ -3,6 +3,10 @@
 QFLASH is the orchestrator of the Funesterie ecosystem.
 Start, stop, purge, inspect, and synchronize modules.
 
+## Release
+
+Latest release: v0.1.4 — https://github.com/jEFFLEZ/qflash/releases/tag/v0.1.4
+
 ## Install
 
 Global (recommended):
@@ -22,6 +26,15 @@ iwr -useb https://raw.githubusercontent.com/jEFFLEZ/qflash/main/installers/insta
 - `qflash purge`      → flush caches + logs + sessions
 - `qflash inspect`    → display status and active ports
 - `qflash config`     → generate default .env/config files
+
+## Examples and templates
+
+Example compose files are provided in `examples/`:
+
+- `examples/funesterie.yml` — YAML compose example
+- `examples/funesterie.fcl` — Funesterie Config Language (FCL) example
+
+Use `qflash compose up` to bring up the example stack.
 
 ## Flags and advanced options
 
