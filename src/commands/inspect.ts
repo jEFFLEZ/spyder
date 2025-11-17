@@ -1,5 +1,6 @@
 import { logger } from "../utils/logger";
 import { detectModules } from "../utils/detect";
+import { listRunning } from "../supervisor";
 import { QFlashOptions } from "../chain/smartChain";
 
 export async function runInspect(opts?: QFlashOptions) {
@@ -9,5 +10,11 @@ export async function runInspect(opts?: QFlashOptions) {
     const v = detected[key];
     logger.info(`${key}: ${v.running ? `running (pid=${v.pid || 'unknown'})` : 'stopped'}`);
     if (v.port) logger.info(`  port: ${v.port}`);
+    if (v.installed) logger.info(`  installed: true`);
+  }
+  const running = listRunning();
+  if (running.length) {
+    logger.info("Supervisor running processes:");
+    for (const r of running) logger.info(`  ${r.name}: pid=${r.pid} cmd=${r.cmd}`);
   }
 }
