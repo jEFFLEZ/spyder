@@ -30,11 +30,12 @@
   "author": "funeste38",
   "license": "MIT",
   "dependencies": {
-    "@funeste38/bat": "^0.1.2",
-    "@funeste38/envaptex": "^1.0.0",
-    "@funeste38/freeland": "^0.1.0",
-    "@funeste38/nezlephant": "^0.1.0",
-    "@funeste38/rome": "^1.5.4"
+    "@funeste38/bat": "latest",
+    "@funeste38/envaptex": "latest",
+    "@funeste38/freeland": "latest",
+    "@funeste38/nezlephant": "latest",
+    "@funeste38/rome": "latest",
+    "js-yaml": "^4.1.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
