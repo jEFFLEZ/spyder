@@ -18,10 +18,12 @@ Options (examples):
   --service a --path D:/A --token ABC123   Target a specific service and give path/token
   --service a --service b                  Target multiple services
   --dev --fresh                            Global flags (dev mode, fresh start)
+  --force                                  Force restart semantics (implies kill before start)
 
 Examples:
   qflash start
   qflash start --service a --path D:/A
+  qflash start --service a --service b --fresh
   qflash config --service b
   qflash purge --fresh
 

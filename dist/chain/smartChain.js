@@ -107,8 +107,17 @@ function buildPipeline(argv) {
     }
     for (const k of Array.from(set))
         addDeps(k);
-    const requestedKill = known.includes("kill");
     let final = [];
+    // Flag-driven transformations
+    if (flags["fresh"]) {
+        set.add("purge");
+        // ensure purge runs before start
+    }
+    if (flags["force"]) {
+        // make sure kill runs before start
+        set.add("kill");
+    }
+    const requestedKill = known.includes("kill");
     if (requestedKill) {
         // put kill first if user explicitly requested it
         final.push("kill");
