@@ -1,6 +1,8 @@
 import { spawn } from "child_process";
 import { logger } from "./logger";
 import { unlinkSync, existsSync, rmSync } from "fs";
+import { execSync } from "child_process";
+
 export function spawnSafe(command: string, args: string[] = [], opts: any = {}) {
   try {
     const proc = spawn(command, args, { stdio: "inherit", shell: true, ...opts });
@@ -22,5 +24,26 @@ export function rimrafSync(path: string) {
     try {
       unlinkSync(path);
     } catch {}
+  }
+}
+
+export function isPackageInstalled(pkgName: string) {
+  try {
+    execSync(`npm ls ${pkgName} --depth=0`, { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function ensurePackageInstalled(pkgName: string) {
+  if (isPackageInstalled(pkgName)) return true;
+  logger.info(`Installing missing package ${pkgName}...`);
+  try {
+    execSync(`npm install -g ${pkgName}`, { stdio: "inherit" });
+    return true;
+  } catch (err: any) {
+    logger.warn(`Failed to install ${pkgName}: ${err.message}`);
+    return false;
   }
 }

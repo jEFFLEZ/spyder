@@ -1,11 +1,26 @@
 import { exec } from "child_process";
 import { logger } from "./logger";
+import { SERVICE_MAP } from "./paths";
 
 export async function detectModules() {
-  // naive detection: try to find processes by name
-  const names = ["a", "b", "c"];
+  // detect installed packages and running processes
   const out: Record<string, any> = {};
-  for (const n of ["a", "b", "c"]) out[n] = { running: false };
+  for (const name of Object.keys(SERVICE_MAP))
+    out[name] = { running: false, installed: false };
+
+  // check installed via npm ls -g
+  for (const name of Object.keys(SERVICE_MAP)) {
+    try {
+      // try require.resolve for local node_modules first
+      try {
+        require.resolve(SERVICE_MAP[name].pkg);
+        out[name].installed = true;
+      } catch {
+        // fallback to global check
+        // noop, we'll check processes later
+      }
+    } catch {}
+  }
 
   await new Promise<void>((resolve) => {
     exec(process.platform === "win32" ? "tasklist" : "ps aux", (err, stdout) => {
@@ -14,7 +29,7 @@ export async function detectModules() {
         return resolve();
       }
       const s = stdout.toString();
-      for (const name of names) {
+      for (const name of Object.keys(SERVICE_MAP)) {
         const regex = new RegExp(name, "i");
         if (regex.test(s)) {
           out[name].running = true;
@@ -27,8 +42,7 @@ export async function detectModules() {
 }
 
 export async function findAndKill() {
-  // naive: find processes that match names and kill them
-  const names = ["a", "b", "c"];
+  const names = Object.keys(SERVICE_MAP);
   const killed: number[] = [];
   for (const n of names) {
     try {
