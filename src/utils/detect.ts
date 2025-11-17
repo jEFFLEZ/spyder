@@ -1,23 +1,25 @@
 import { exec } from "child_process";
 import { logger } from "./logger";
 import { SERVICE_MAP } from "./paths";
+import { resolvePackagePath } from "./package";
 
 export async function detectModules() {
-  // detect installed packages and running processes
   const out: Record<string, any> = {};
   for (const name of Object.keys(SERVICE_MAP))
-    out[name] = { running: false, installed: false };
+    out[name] = { running: false, installed: false, path: undefined, bin: undefined };
 
-  // check installed via npm ls -g
   for (const name of Object.keys(SERVICE_MAP)) {
     try {
-      // try require.resolve for local node_modules first
-      try {
-        require.resolve(SERVICE_MAP[name].pkg);
+      const pkgPath = resolvePackagePath(SERVICE_MAP[name].pkg);
+      if (pkgPath) {
         out[name].installed = true;
-      } catch {
-        // fallback to global check
-        // noop, we'll check processes later
+        out[name].path = pkgPath;
+        try {
+          const pkgJson = require(require('path').join(pkgPath, 'package.json'));
+          if (pkgJson && pkgJson.bin) {
+            out[name].bin = typeof pkgJson.bin === 'string' ? pkgJson.bin : Object.values(pkgJson.bin)[0];
+          }
+        } catch {}
       }
     } catch {}
   }
