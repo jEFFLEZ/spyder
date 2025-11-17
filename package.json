@@ -11,7 +11,12 @@
     "dist",
     "installers",
     "README.md",
-    "PUBLISH.md"
+    "PUBLISH.md",
+    "LICENSE-FUNESTERIE.txt",
+    "LICENSE-NON-COMMERCIAL.md",
+    "LICENSE-COMMERCIAL.md",
+    "TRADEMARK.md",
+    "README-FCL.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -28,18 +33,19 @@
     "exodia"
   ],
   "author": "funeste38",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE-FUNESTERIE.txt",
   "dependencies": {
+    "@funeste38/rome": "latest",
+    "@funeste38/nezlephant": "latest",
+    "@funeste38/freeland": "latest",
     "@funeste38/bat": "latest",
     "@funeste38/envaptex": "latest",
-    "@funeste38/freeland": "latest",
-    "@funeste38/nezlephant": "latest",
-    "@funeste38/rome": "latest",
-    "js-yaml": "^4.1.1"
+    "js-yaml": "^4.1.0",
+    "tail": "^2.2.4"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "typescript": "^5.6.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.6.0"
+    "@types/node": "^20.0.0"
   }
 }
