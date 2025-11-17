@@ -3,6 +3,7 @@ import { join } from "path";
 
 // Map service names to npm package names and local folder candidates
 export const SERVICE_MAP: Record<string, { pkg: string; candidates: string[] }> = {
+  rome: { pkg: "@funeste38/rome", candidates: ["./rome", "./Rome"] },
   nezlephant: { pkg: "@funeste38/nezlephant", candidates: ["./nezlephant", "./Nezlephant"] },
   envaptex: { pkg: "@funeste38/envaptex", candidates: ["./envaptex", "./Envaptex"] },
   freeland: { pkg: "@funeste38/freeland", candidates: ["./freeland", "./Freeland"] },

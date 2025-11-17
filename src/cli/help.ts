@@ -14,13 +14,13 @@ Commands:
   config       Generate missing .env/config files
 
 Options (examples):
-  --service nezlephant --path D:/nez --token ABC123   Target a specific service and give path/token
-  --service nezlephant --service freeland             Target multiple services
-  --dev --fresh                                       Global flags (dev mode, fresh start)
-  --force                                             Force restart semantics (implies kill before start)
+  --service rome --path D:/rome --token ABC123     Target a specific service and give path/token
+  --service nezlephant --service freeland          Target multiple services
+  --dev --fresh                                    Global flags (dev mode, fresh start)
+  --force                                          Force restart semantics (implies kill before start)
 
 Examples:
-  qflash start --service nezlephant --path D:/nez
+  qflash start --service rome --path D:/rome
   qflash start --service nezlephant --service freeland --fresh
   qflash config --service freeland
   qflash purge --fresh

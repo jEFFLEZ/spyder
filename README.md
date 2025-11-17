@@ -17,7 +17,7 @@ iwr -useb https://raw.githubusercontent.com/jEFFLEZ/qflash/main/installers/insta
 
 ## Commands
 
-- `qflash start`      → launch ecosystem (nezlephant, envaptex, freeland, bat)
+- `qflash start`      → launch ecosystem (rome, nezlephant, envaptex, freeland, bat)
 - `qflash kill`       → kill all processes cleanly
 - `qflash purge`      → flush caches + logs + sessions
 - `qflash inspect`    → display status and active ports
@@ -32,14 +32,14 @@ Global flags (examples):
 - `--proxy=NAME`     Proxy selection, forwarded to modules
 
 Service targeting:
-- `--service <name>` Select a service to target (examples: `nezlephant`, `envaptex`, `freeland`, `bat`).
+- `--service <name>` Select a service to target (examples: `rome`, `nezlephant`, `envaptex`, `freeland`, `bat`).
 - `--path <path>`    Assign a path for the most recent `--service` declared.
 - `--token <token>`  Assign a token for the most recent `--service` declared.
 
 Examples:
 
 ```
-qflash start --service nezlephant --path D:/nez --token ABC123
+qflash start --service rome --path D:/rome --token ABC123
 qflash start --service nezlephant --service freeland
 qflash start --service nezlephant --service freeland --fresh
 qflash config --service freeland
