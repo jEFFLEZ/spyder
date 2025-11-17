@@ -1,8 +1,12 @@
 import { logger } from '../utils/logger';
 import { detectModules } from '../utils/detect';
-import { httpProbe, tcpProbe } from '../utils/health';
+import { httpProbe } from '../utils/health';
+import { SERVICE_MAP } from '../utils/paths';
+import { ensurePackageInstalled } from '../utils/exec';
 
-export async function runDoctor() {
+export async function runDoctor(argv: string[] = []) {
+  const fix = argv.includes('--fix') || argv.includes('-f');
+
   logger.info('qflash: running doctor checks...');
   const detected = await detectModules();
   for (const k of Object.keys(detected)) {
@@ -12,11 +16,29 @@ export async function runDoctor() {
       logger.info(`  bin: ${v.bin}`);
     }
   }
+
   // check node version
   logger.info(`Node version: ${process.version}`);
-  // simple port checks if any
-  // check localhost:80 for firewall example
+
+  // simple http check example
   const httpOk = await httpProbe('http://localhost:80', 500);
   logger.info(`HTTP localhost:80 reachable: ${httpOk}`);
+
+  if (fix) {
+    logger.info('Doctor fix: attempting to install missing Funeste38 packages...');
+    for (const name of Object.keys(SERVICE_MAP)) {
+      const pkg = SERVICE_MAP[name].pkg;
+      const detectedInfo = detected[name];
+      if (!detectedInfo || !detectedInfo.installed) {
+        logger.info(`Installing ${pkg} for service ${name}...`);
+        const ok = ensurePackageInstalled(pkg);
+        if (ok) logger.success(`Installed ${pkg}`);
+        else logger.warn(`Failed to install ${pkg}`);
+      } else {
+        logger.info(`${pkg} already installed`);
+      }
+    }
+  }
+
   logger.info('Doctor checks complete');
 }

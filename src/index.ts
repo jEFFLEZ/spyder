@@ -16,7 +16,14 @@ if (first === 'compose') {
   process.exit(0);
 }
 if (first === 'doctor') {
-  void runDoctor();
+  void runDoctor(argv.slice(1));
+  process.exit(0);
+}
+if (first === 'daemon') {
+  // start qflashd in-process
+  void import('./daemon/qflashd').then((m) => {
+    // module starts itself and logs
+  }).catch((err) => { console.error('failed to start daemon', err); process.exit(1); });
   process.exit(0);
 }
 
