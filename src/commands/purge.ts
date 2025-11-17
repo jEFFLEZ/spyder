@@ -1,0 +1,27 @@
+import { logger } from "../utils/logger";
+import { resolvePaths } from "../utils/paths";
+import { rimrafSync } from "../utils/exec";
+import { QFlashOptions } from "../chain/smartChain";
+
+export async function runPurge(opts?: QFlashOptions) {
+  logger.info("qflash: purging caches, logs, sessions...");
+  const paths = resolvePaths(opts?.detected || {});
+  const targets = [] as string[];
+  for (const key of Object.keys(paths)) {
+    const p = paths[key];
+    if (!p) continue;
+    targets.push(`${p}/.cache`);
+    targets.push(`${p}/logs`);
+    targets.push(`${p}/tmp`);
+    targets.push(`${p}/sessions`);
+  }
+  for (const t of targets) {
+    try {
+      rimrafSync(t);
+      logger.success(`Removed ${t}`);
+    } catch (err) {
+      logger.warn(`Failed to remove ${t}: ${err}`);
+    }
+  }
+  logger.info("Purge complete.");
+}
