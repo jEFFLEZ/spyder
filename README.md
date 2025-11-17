@@ -12,17 +12,16 @@ npm install -g @funeste38/qflash
 PowerShell one-liner (if installer hosted):
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/jEFFLEZ/qflash/main/qflash/installers/install-qflash.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/jEFFLEZ/qflash/main/installers/install-qflash.ps1 | iex
 ```
 
 ## Commands
 
-- `qflash start`      → launch ecosystem (services a, b, c)
+- `qflash start`      → launch ecosystem (nezlephant, envaptex, freeland, bat)
 - `qflash kill`       → kill all processes cleanly
 - `qflash purge`      → flush caches + logs + sessions
 - `qflash inspect`    → display status and active ports
 - `qflash config`     → generate default .env/config files
-- `qflash exodia`     → EXODIA feature pending
 
 ## Flags and advanced options
 
@@ -33,16 +32,17 @@ Global flags (examples):
 - `--proxy=NAME`     Proxy selection, forwarded to modules
 
 Service targeting:
-- `--service <name>` Select a service to target (generic examples: `a`, `b`, `c`).
+- `--service <name>` Select a service to target (examples: `nezlephant`, `envaptex`, `freeland`, `bat`).
 - `--path <path>`    Assign a path for the most recent `--service` declared.
 - `--token <token>`  Assign a token for the most recent `--service` declared.
 
 Examples:
 
 ```
-qflash start --service a --path D:/A --token ABC123
-qflash start --service a --service b --fresh
-qflash config --service b
+qflash start --service nezlephant --path D:/nez --token ABC123
+qflash start --service nezlephant --service freeland
+qflash start --service nezlephant --service freeland --fresh
+qflash config --service freeland
 qflash purge --fresh
 ```
 
@@ -87,4 +87,4 @@ iwr -useb https://raw.githubusercontent.com/jEFFLEZ/qflash/main/installers/insta
 
 ## Future
 
-`qflash exodia` will combine modules into a single launch protocol.
+Future improvements will focus on better detection, richer SmartChain rules and optional integrations.
