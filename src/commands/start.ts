@@ -4,6 +4,8 @@ import { spawnSafe, ensurePackageInstalled } from "../utils/exec";
 import { resolvePaths, SERVICE_MAP } from "../utils/paths";
 import { QFlashOptions } from "../chain/smartChain";
 import { resolvePackagePath, readPackageJson } from "../utils/package";
+import { startProcess } from "../supervisor";
+import { waitForService } from "../utils/health";
 
 export async function runStart(opts?: QFlashOptions) {
   logger.info("qflash: starting modules...");
@@ -64,43 +66,44 @@ export async function runStart(opts?: QFlashOptions) {
       const spawnOnce = (): Promise<void> => {
         return new Promise((resolve) => {
           logger.info(`Launching ${mod} -> ${runCmd!.cmd} ${runCmd!.args.join(" ")}`);
-          const child = spawnSafe(runCmd!.cmd, runCmd!.args, { cwd: runCmd!.cwd });
+
+          // use supervisor to manage and persist process
+          const child = startProcess(mod, runCmd!.cmd, runCmd!.args, { cwd: runCmd!.cwd });
 
           if (waitForStart) {
-            // resolve when the process has spawned
-            child.once("spawn", () => {
-              logger.info(`${mod} spawned (pid=${child.pid})`);
-              resolve();
-            });
-            // fallback timeout
-            setTimeout(() => {
-              logger.info(`${mod} wait timeout elapsed, continuing`);
-              resolve();
-            }, 3000);
+            // try to wait for a health endpoint if provided in flags
+            const svcUrl = flags["health-url"] || flags["health"];
+            const svcPort = flags["health-port"] || undefined;
+            if (svcUrl) {
+              waitForService(svcUrl as string, svcPort as any).then((ok) => {
+                if (ok) logger.success(`${mod} passed health check`);
+                else logger.warn(`${mod} failed health check`);
+                resolve();
+              });
+            } else {
+              // wait for spawn via PID persistence
+              setTimeout(() => {
+                logger.info(`${mod} started (delayed wait).`);
+                resolve();
+              }, 2000);
+            }
           } else {
-            // resolve immediately (we started the process)
             resolve();
           }
 
-          child.on("exit", (code) => {
-            logger.warn(`${mod} exited with ${code}`);
-            if (doRestart && restarts < maxRestarts) {
-              restarts += 1;
-              logger.info(`${mod}: restarting (${restarts}/${maxRestarts}) in 1s`);
-              setTimeout(() => spawnOnce(), 1000);
-            }
-          });
+          // child exit handled by supervisor
         });
       };
 
       // start the first time and optionally wait
       await spawnOnce();
+
+      // restart logic handled by supervisor-level events, keep simple here
     })();
 
     procs.push(promise);
   }
 
-  // wait for all to have been started (if waitForStart true, spawnOnce resolves after spawn)
   await Promise.all(procs);
 
   logger.success("qflash: start sequence initiated for selected modules");
