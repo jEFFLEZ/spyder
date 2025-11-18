@@ -17,15 +17,12 @@ jobs:
           node-version: '20'
       - name: Install dependencies
         run: |
-          cd qflash
           npm ci
       - name: Build
         run: |
-          cd qflash
           npm run build
       - name: Run tests
         run: |
-          cd qflash
           npm test
 
   integration-dry-run:
@@ -39,14 +36,11 @@ jobs:
           node-version: '20'
       - name: Install dependencies
         run: |
-          cd qflash
           npm ci
       - name: Build
         run: |
-          cd qflash
           npm run build
       - name: Integration dry-run
         run: |
-          cd qflash
           node dist/index.js start --verbose --dry-run
         timeout-minutes: 10
