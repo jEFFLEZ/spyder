@@ -74,9 +74,15 @@ async function tryFetch(fullUrl: string, options: any = {}, timeout = DEFAULT_TI
   if (controller) timer = setTimeout(() => controller.abort(), timeout);
   try {
     // prefer global fetch
-    const ff: any = (globalThis as any).fetch
-      ? (globalThis as any).fetch
-      : (await import('undici')).fetch;
+    let ff: any = (globalThis as any).fetch;
+    if (!ff) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        ff = require('undici').fetch;
+      } catch (e) {
+        throw new Error('No fetch available (install undici or use Node 18+)');
+      }
+    }
     const res = await ff(fullUrl, opts);
     const text = await res.text();
     if (timer) clearTimeout(timer);
