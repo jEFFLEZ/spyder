@@ -6,6 +6,7 @@ export type LogicRule = {
   do: string;
   version?: number;
   priority?: number;
+  schedule?: string;
 };
 
 export function parseLogicFile(filePath: string): LogicRule[] {
@@ -24,6 +25,7 @@ export function parseLogicFile(filePath: string): LogicRule[] {
       let action = '';
       let version: number | undefined = undefined;
       let priority: number | undefined = undefined;
+      let schedule: string | undefined = undefined;
       while (i < lines.length && !lines[i].startsWith('}')) {
         const ln = lines[i];
         if (ln.startsWith('when ')) when = ln.slice('when '.length).trim();
@@ -36,10 +38,13 @@ export function parseLogicFile(filePath: string): LogicRule[] {
           const p = Number(ln.slice('priority '.length).trim());
           if (!isNaN(p)) priority = p;
         }
+        if (ln.startsWith('schedule ')) {
+          schedule = ln.slice('schedule '.length).trim();
+        }
         i++;
       }
       i++;
-      rules.push({ name, when, do: action, version, priority });
+      rules.push({ name, when, do: action, version, priority, schedule });
     } else {
       i++;
     }

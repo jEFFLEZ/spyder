@@ -4,8 +4,26 @@ import { parseLogicFile, LogicRule, evaluateConditionExpr, buildConditionAst, ev
 import { RomeIndex, RomeTagRecord } from './rome-tag';
 
 const LOGIC_PATH = path.join(process.cwd(), '.qflush', 'logic.qfl');
+const VARS_PATH = path.join(process.cwd(), '.qflush', 'logic-vars.json');
 
 let rules: LogicRule[] = [];
+let vars: Record<string,string> = {};
+
+function loadVars() {
+  try {
+    if (fs.existsSync(VARS_PATH)) { vars = JSON.parse(fs.readFileSync(VARS_PATH,'utf8') || '{}'); }
+  } catch (e) { vars = {}; }
+}
+
+function substitute(s: string) {
+  if (!s) return s;
+  // ${VAR} substitution from vars then from process.env
+  return s.replace(/\$\{([A-Za-z0-9_]+)\}/g, (_, name) => {
+    if (vars && typeof vars[name] !== 'undefined') return vars[name];
+    if (process.env[name]) return process.env[name] as string;
+    return '';
+  });
+}
 
 export function loadLogicRules(): LogicRule[] {
   // prefer .qflush/logic.qfl then src/rome/logic/logic.qfl
@@ -13,7 +31,10 @@ export function loadLogicRules(): LogicRule[] {
   const p = fs.existsSync(LOGIC_PATH) ? LOGIC_PATH : alt;
   if (!fs.existsSync(p)) { rules = []; return rules; }
   try {
-    rules = parseLogicFile(p);
+    loadVars();
+    const parsed = parseLogicFile(p);
+    // apply substitutions and keep schedule/version/priority
+    rules = parsed.map(r => ({ ...r, when: substitute(r.when), do: substitute(r.do) }));
   } catch (e) { rules = []; }
   return rules;
 }
@@ -22,14 +43,13 @@ export function evaluateRulesForRecord(index: RomeIndex, rec: RomeTagRecord, cha
   const matched: { rule: string; actions: string[] }[] = [];
   for (const r of rules) {
     const cond = r.when || '';
-    // build AST and evaluate with context
     try {
       const ast = buildConditionAst(cond);
       const ctx = { file: rec, romeIndexUpdated: (changedPaths && changedPaths.length>0) };
       const ok = evaluateConditionExprAST(ast, ctx);
       if (ok) matched.push({ rule: r.name, actions: [r.do] });
     } catch (e) {
-      // ignore
+      // ignore parse/eval errors per-rule
     }
   }
   return matched;
@@ -41,7 +61,7 @@ export function evaluateAllRules(index: RomeIndex, changedPaths: string[] = []) 
     const a = evaluateRulesForRecord(index, rec as any, changedPaths);
     for (const m of a) actions.push({ path: (rec as any).path, actions: m.actions, rule: m.rule });
   }
-  // sort by rule priority if available
+  // future: sort by priority/version
   return actions;
 }
 
