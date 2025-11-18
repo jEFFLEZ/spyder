@@ -6,6 +6,7 @@ import { runDoctor } from "./commands/doctor";
 import runNpzInspect from "./commands/npz-inspect";
 import runNpzScores from "./commands/npz-scores";
 import { runLicense } from "./commands/license";
+import runChecksum from "./commands/checksum";
 
 const argv = process.argv.slice(2);
 if (argv.includes("--help") || argv.includes("-h")) {
@@ -23,8 +24,8 @@ if (first === "doctor") {
   process.exit(0);
 }
 if (first === "daemon") {
-  // start qflashd in-process
-  void import("./daemon/qflashd").then((m) => {
+  // start qflushd in-process
+  void import("./daemon/qflushd").then((m) => {
     // module starts itself and logs
   }).catch((err) => {
     console.error("failed to start daemon", err);
@@ -40,11 +41,18 @@ if (first === 'license' || (first === 'lic' && argv[1] === 'activate')) {
   })();
 }
 
-// NPZ inspect command: `qflash npz:inspect <id>` or `qflash npz inspect <id>`
+if (first === 'checksum') {
+  (async () => {
+    const code = await runChecksum(argv.slice(1));
+    process.exit(code ?? 0);
+  })();
+}
+
+// NPZ inspect command: `qflush npz:inspect <id>` or `qflush npz inspect <id>`
 if (first === "npz:inspect" || (first === "npz" && argv[1] === "inspect")) {
   const id = first === "npz:inspect" ? argv[1] : argv[2];
   if (!id) {
-    console.error("usage: qflash npz:inspect <npz_id>");
+    console.error("usage: qflush npz:inspect <npz_id>");
     process.exit(1);
   }
   // run and exit with returned code
@@ -87,6 +95,6 @@ if (first === "npz:scores:reset" || (first === "npz" && argv[1] === "scores:rese
 const { pipeline, options } = buildPipeline(argv);
 
 executePipeline(pipeline, options).catch((err) => {
-  console.error("qflash: fatal", err);
+  console.error("qflush: fatal", err);
   process.exit(1);
 });

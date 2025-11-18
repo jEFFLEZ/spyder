@@ -7,15 +7,15 @@ import * as https from 'https';
 const TRIAL_DAYS = 14;
 
 function isTrialExpired(context: vscode.ExtensionContext): boolean {
-  const started = context.globalState.get<number>('qflash.trialStarted');
+  const started = context.globalState.get<number>('qflush.trialStarted');
   if (!started) return false; // start on first use
   const now = Date.now();
   return now - started > TRIAL_DAYS * 24 * 3600 * 1000;
 }
 
 function ensureTrialStarted(context: vscode.ExtensionContext) {
-  const started = context.globalState.get<number>('qflash.trialStarted');
-  if (!started) context.globalState.update('qflash.trialStarted', Date.now());
+  const started = context.globalState.get<number>('qflush.trialStarted');
+  if (!started) context.globalState.update('qflush.trialStarted', Date.now());
 }
 
 function postJson(urlStr: string, body: any): Promise<any> {
@@ -86,18 +86,18 @@ function getJson(urlStr: string): Promise<any> {
 export function activate(context: vscode.ExtensionContext) {
   ensureTrialStarted(context);
 
-  const openDisposable = vscode.commands.registerCommand('qflash.openPanel', () => {
+  const openDisposable = vscode.commands.registerCommand('qflush.openPanel', () => {
     if (isTrialExpired(context)) {
-      vscode.window.showInformationMessage('QFlash trial expired. Click to purchase a license.', 'Purchase', 'Enter Key').then((v) => {
+      vscode.window.showInformationMessage('QFlush trial expired. Click to purchase a license.', 'Purchase', 'Enter Key').then((v) => {
         if (v === 'Purchase') vscode.env.openExternal(vscode.Uri.parse('https://gumroad.com/l/your-product'));
-        if (v === 'Enter Key') vscode.commands.executeCommand('qflash.enterLicense');
+        if (v === 'Enter Key') vscode.commands.executeCommand('qflush.enterLicense');
       });
       return;
     }
 
     const panel = vscode.window.createWebviewPanel(
-      'qflashPanel',
-      'QFlash',
+      'qflushPanel',
+      'QFlush',
       vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -115,7 +115,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     panel.webview.html = html;
 
-    const cfg = vscode.workspace.getConfiguration('qflash');
+    const cfg = vscode.workspace.getConfiguration('qflush');
     const daemonUrl = cfg.get<string>('daemonUrl') || 'http://localhost:4500';
     const token = cfg.get<string>('adminToken') || '';
 
@@ -126,7 +126,7 @@ export function activate(context: vscode.ExtensionContext) {
     panel.webview.onDidReceiveMessage(
       async (message) => {
         if (message && message.type === 'saveConfig') {
-          const cfg = vscode.workspace.getConfiguration('qflash');
+          const cfg = vscode.workspace.getConfiguration('qflush');
           await cfg.update('daemonUrl', message.daemonUrl, vscode.ConfigurationTarget.Global);
           await cfg.update('adminToken', message.token, vscode.ConfigurationTarget.Global);
           panel.webview.postMessage({ type: 'saved', info: 'Configuration saved' });
@@ -137,21 +137,73 @@ export function activate(context: vscode.ExtensionContext) {
     );
   });
 
-  const enterLicense = vscode.commands.registerCommand('qflash.enterLicense', async () => {
-    const key = await vscode.window.showInputBox({ prompt: 'Enter your QFlash license key' });
+  const openPourparler = vscode.commands.registerCommand('qflush.openPourparler', () => {
+    const panel = vscode.window.createWebviewPanel('qflushPourparler', 'Pourparler', vscode.ViewColumn.One, { enableScripts: true, localResourceRoots: [vscode.Uri.file(path.join(context.extensionPath, 'src'))] });
+    const htmlPath = path.join(context.extensionPath, 'src', 'pourparler-web.html');
+    let html = '';
+    try { html = fs.readFileSync(htmlPath, 'utf8'); } catch (e) { html = `<html><body><pre>pourparler-web.html not found at ${htmlPath}</pre></body></html>`; }
+    panel.webview.html = html;
+
+    panel.webview.onDidReceiveMessage(async (msg) => {
+      try {
+        if (msg && msg.type === 'export') {
+          const destUri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(path.join(process.cwd(), msg.filename)), filters: { 'Images': ['png','svg'] } });
+          if (!destUri) return;
+          if (msg.format === 'svg') {
+            fs.writeFileSync(destUri.fsPath, msg.data, 'utf8');
+          } else if (msg.format === 'png') {
+            // data url -> binary
+            const base64 = msg.data.split(',')[1];
+            const buf = Buffer.from(base64, 'base64');
+            fs.writeFileSync(destUri.fsPath, buf);
+          }
+          vscode.window.showInformationMessage(`Exported ${msg.filename}`);
+        }
+
+        // new messages from pourparler webview
+        if (msg && msg.type === 'npzList') {
+          const cfg = vscode.workspace.getConfiguration('qflush');
+          const daemonUrl = cfg.get<string>('daemonUrl') || 'http://localhost:4500';
+          try {
+            const data = await getJson(`${daemonUrl.replace(/\/$/, '')}/npz/checksum/list`);
+            panel.webview.postMessage({ type: 'npzListResult', data });
+          } catch (e) {
+            panel.webview.postMessage({ type: 'npzListResult', data: { success: false, error: String(e) } });
+          }
+        }
+
+        if (msg && msg.type === 'npzClear') {
+          const cfg = vscode.workspace.getConfiguration('qflush');
+          const daemonUrl = cfg.get<string>('daemonUrl') || 'http://localhost:4500';
+          try {
+            const resp = await fetch(`${daemonUrl.replace(/\/$/, '')}/npz/checksum/clear`, { method: 'DELETE' });
+            const j = await resp.json();
+            panel.webview.postMessage({ type: 'npzClearResult', data: j });
+          } catch (e) {
+            panel.webview.postMessage({ type: 'npzClearResult', data: { success: false, error: String(e) } });
+          }
+        }
+      } catch (e) {
+        vscode.window.showErrorMessage('Extension message handler failed: ' + String(e));
+      }
+    }, undefined, context.subscriptions);
+  });
+
+  const enterLicense = vscode.commands.registerCommand('qflush.enterLicense', async () => {
+    const key = await vscode.window.showInputBox({ prompt: 'Enter your QFlush license key' });
     if (!key) return;
 
-    const cfg = vscode.workspace.getConfiguration('qflash');
+    const cfg = vscode.workspace.getConfiguration('qflush');
     const daemonUrl = cfg.get<string>('daemonUrl') || 'http://localhost:4500';
     const activateUrl = `${daemonUrl.replace(/\/$/, '')}/license/activate`;
 
-    const progressOptions: vscode.ProgressOptions = { location: vscode.ProgressLocation.Notification, title: 'Activating QFlash license...', cancellable: false };
+    const progressOptions: vscode.ProgressOptions = { location: vscode.ProgressLocation.Notification, title: 'Activating QFlush license...', cancellable: false };
     try {
       await vscode.window.withProgress(progressOptions, async () => {
         const res = await postJson(activateUrl, { key });
         // store license info locally in extension globalState
-        await context.globalState.update('qflash.licenseKey', key);
-        await context.globalState.update('qflash.licenseInfo', res.license || res);
+        await context.globalState.update('qflush.licenseKey', key);
+        await context.globalState.update('qflush.licenseInfo', res.license || res);
         vscode.window.showInformationMessage('License activated successfully. Thanks!');
       });
     } catch (err: any) {
@@ -159,8 +211,8 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  const showStatus = vscode.commands.registerCommand('qflash.showLicenseStatus', async () => {
-    const cfg = vscode.workspace.getConfiguration('qflash');
+  const showStatus = vscode.commands.registerCommand('qflush.showLicenseStatus', async () => {
+    const cfg = vscode.workspace.getConfiguration('qflush');
     const daemonUrl = cfg.get<string>('daemonUrl') || 'http://localhost:4500';
     const statusUrl = `${daemonUrl.replace(/\/$/, '')}/license/status`;
     try {
@@ -181,7 +233,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  context.subscriptions.push(openDisposable, enterLicense, showStatus);
+  context.subscriptions.push(openDisposable, openPourparler, enterLicense, showStatus);
 }
 
 export function deactivate() {}

@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 
-const DEFAULT_STORAGE = path.join(process.cwd(), '.qflash', 'license.json');
+const DEFAULT_STORAGE = path.join(process.cwd(), '.qflush', 'license.json');
 
 export type LicenseRecord = {
   key: string;

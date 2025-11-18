@@ -10,7 +10,7 @@ import { runCustomsCheck, hasBlockingIssues, ModuleDescriptor } from "../utils/n
 import npz from "../utils/npz";
 
 export async function runStart(opts?: QFlashOptions) {
-  logger.info("qflash: starting modules...");
+  logger.info("qflush: starting modules...");
   const detected = opts?.detected || (await detectModules());
   const paths = resolvePaths(detected);
 
@@ -179,5 +179,5 @@ export async function runStart(opts?: QFlashOptions) {
 
   await Promise.all(procs);
 
-  logger.success("qflash: start sequence initiated for selected modules");
+  logger.success("qflush: start sequence initiated for selected modules");
 }

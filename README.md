@@ -1,16 +1,29 @@
 # @funeste38/qflush ⚡
 
 QFLUSH is the orchestrator of the Funesterie ecosystem.
+Start, stop, purge, inspect, and synchronize modules.
 
-This repository includes a local daemon `qflush` which can verify Gumroad license keys locally.
+## New: checksum CLI & extension utilities
 
-Local license activation
+This release adds a one-time checksum mechanism and tooling to help use it.
 
-- Start daemon: `npm run build && node dist/daemon/qflushd.js`
-- Activate: POST `http://localhost:4500/license/activate` with `{ "key": "..." }`
-- Status: GET `http://localhost:4500/license/status`
+Daemon endpoints (local qflush daemon must be running):
 
-For most use cases no public endpoint or webhook is required — the daemon verifies keys directly with Gumroad.
+- `POST /npz/checksum/store` — store a checksum for an id: `{ id, checksum, ttlMs? }`
+- `POST /npz/checksum/verify` — verify and consume a checksum: `{ id, checksum }`
+- `GET  /npz/checksum/list` — list active checksums and remaining TTL
+- `DELETE /npz/checksum/clear` — clear cache (memory or Redis index)
+
+CLI:
+
+- `qflush checksum store <id> <checksum> [--ttl=ms]`
+- `qflush checksum verify <id> <checksum>`
+- `qflush checksum list`
+- `qflush checksum clear`
+
+VS Code extension (Pourparler):
+
+- New buttons `List checksums` and `Clear checksums` in the Pourparler panel that call the daemon endpoints and display results.
 
 ## Release
 

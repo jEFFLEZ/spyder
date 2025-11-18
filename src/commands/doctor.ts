@@ -7,7 +7,7 @@ import { ensurePackageInstalled } from '../utils/exec';
 export async function runDoctor(argv: string[] = []) {
   const fix = argv.includes('--fix') || argv.includes('-f');
 
-  logger.info('qflash: running doctor checks...');
+  logger.info('qflush: running doctor checks...');
   const detected = await detectModules();
   for (const k of Object.keys(detected)) {
     const v = detected[k];

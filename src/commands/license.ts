@@ -4,14 +4,14 @@ import logger from '../utils/logger';
 export async function runLicense(argv: string[] = []) {
   const sub = argv[0];
   if (!sub) {
-    logger.info('Usage: qflash license activate <key> [--product=<id>]');
+    logger.info('Usage: qflush license activate <key> [--product=<id>]');
     return 1;
   }
 
   if (sub === 'activate') {
     const key = argv[1];
     if (!key) {
-      logger.error('No license key provided. Usage: qflash license activate <key> [--product=<id>]');
+      logger.error('No license key provided. Usage: qflush license activate <key> [--product=<id>]');
       return 1;
     }
     // parse optional --product=ID

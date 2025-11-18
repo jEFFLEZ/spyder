@@ -4,7 +4,7 @@ import { listRunning } from "../supervisor";
 import { QFlashOptions } from "../chain/smartChain";
 
 export async function runInspect(opts?: QFlashOptions) {
-  logger.info("qflash: inspecting ecosystem...");
+  logger.info("qflush: inspecting ecosystem...");
   const detected = opts?.detected || (await detectModules());
   for (const key of Object.keys(detected)) {
     const v = detected[key];

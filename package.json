@@ -22,7 +22,7 @@
   "scripts": {
     "prebuild": "node ./tools/generate-pourparler-css.js",
     "build": "tsc -p .",
-    "test": "node dist/tests/smartchain.test.js"
+    "test": "ts-node ./src/tests/checksum.test.ts"
   },
   "keywords": [
     "funeste38",
