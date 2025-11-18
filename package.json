@@ -20,6 +20,7 @@
     "README-FCL.md"
   ],
   "scripts": {
+    "prebuild": "node ./tools/generate-pourparler-css.js",
     "build": "tsc -p tsconfig.json",
     "prepare": "npm run build",
     "test": "node dist/tests/smartchain.test.js"

@@ -103,6 +103,75 @@ app.get('/status', (_req: Request, res: Response) => {
   res.json({ ok: true, port: PORT });
 });
 
+// expose npz pourparler endpoints
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const pourparler = require('../utils/npz-pourparler');
+
+  app.post('/npz/pourparler', (req: Request, res: Response) => {
+    try {
+      const body = req.body || {};
+      const action = body.action || 'color'; // default action
+      const text = String(body.text || '');
+
+      if (action === 'encode') {
+        const enc = pourparler.encodeAscii4(text);
+        return res.json({ success: true, encoded: enc });
+      }
+
+      if (action === 'color') {
+        const colored = pourparler.colorizeAscii4(text);
+        return res.json({ success: true, colored });
+      }
+
+      if (action === 'start') {
+        const s = pourparler.startSession(body.systemPrompt || '');
+        return res.json({ success: true, session: s });
+      }
+
+      if (action === 'send') {
+        if (!body.sessionId) return res.status(400).json({ success: false, error: 'sessionId missing' });
+        const m = pourparler.sendMessage(body.sessionId, body.role || 'user', String(body.text || ''));
+        return res.json({ success: true, message: m });
+      }
+
+      if (action === 'history') {
+        if (!body.sessionId) return res.status(400).json({ success: false, error: 'sessionId missing' });
+        const h = pourparler.getHistory(body.sessionId);
+        return res.json({ success: true, history: h });
+      }
+
+      if (action === 'end') {
+        if (!body.sessionId) return res.status(400).json({ success: false, error: 'sessionId missing' });
+        const ok = pourparler.endSession(body.sessionId);
+        return res.json({ success: true, ended: ok });
+      }
+
+      if (action === 'checksum') {
+        try {
+          const cssPath = path.join(process.cwd(), 'extensions', 'vscode-npz', 'pourparler-checksum.css');
+          if (fs.existsSync(cssPath)) {
+            const content = fs.readFileSync(cssPath, 'utf8');
+            // extract the checksum value
+            const m = content.match(/--npz-pourparler-checksum:\s*'([a-f0-9]+)'/i);
+            const checksum = m ? m[1] : null;
+            return res.json({ success: true, checksum, path: cssPath });
+          }
+          return res.status(404).json({ success: false, error: 'css not found' });
+        } catch (err) {
+          return res.status(500).json({ success: false, error: String(err) });
+        }
+      }
+
+      return res.status(400).json({ success: false, error: 'unknown action' });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: String(e) });
+    }
+  });
+} catch (e) {
+  // ignore if module not present
+}
+
 app.listen(PORT, () => {
   console.log(`qflash running on http://localhost:${PORT}`);
 });

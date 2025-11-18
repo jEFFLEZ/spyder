@@ -39,13 +39,14 @@ if [ "$1" = "help" ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
   color_print "$C_GREEN" "  npz build --cwd <dir>" "\tRun npm run build in target directory"
   color_print "$C_GREEN" "  npz test --cwd <dir>" "\tRun npm test in target directory"
   color_print "$C_GREEN" "  npz info" "\tShow NPZ namespace and local daemon status"
+  color_print "$C_GREEN" "  npz checksum" "\tShow pourparler checksum (from CSS or daemon)"
   echo
   color_print "$C_YELLOW" "Colors: green=ok yellow=warning red=error"
   exit 0
 fi
 
 # info: show namespace (from Node util) and daemon status
-if [ "$1" = "info" ]; then
+if [ "$1" = "info" ] || [ "$1" = "checksum" ]; then
   # namespace via node helper if available
   NS="$(node -e 'try{const c=require("./dist/utils/npz-config").default; if(c && c.getNpzNamespace) console.log(c.getNpzNamespace()); }catch(e){}' 2>/dev/null)"
   if [ -z "$NS" ]; then NS="(unknown)"; fi
@@ -58,8 +59,29 @@ if [ "$1" = "info" ]; then
     else
       color_print "$C_YELLOW" "Daemon: not reachable on http://localhost:4500"
     fi
+    # checksum via daemon
+    if [ "$1" = "checksum" ]; then
+      CHK=$(curl -sS -X POST http://localhost:4500/npz/pourparler -H 'Content-Type: application/json' -d '{"action":"checksum"}' 2>/dev/null || true)
+      if [ -n "$CHK" ]; then
+        color_print "$C_GREEN" "Checksum (daemon): $CHK"
+      fi
+    fi
   else
     color_print "$C_YELLOW" "Daemon: curl not available to check status"
+  fi
+  # fallback: read CSS file locally
+  if [ "$1" = "checksum" ]; then
+    CSS="${DIR}/extensions/vscode-npz/pourparler-checksum.css"
+    if [ -f "$CSS" ]; then
+      GREP=$(grep -E "--npz-pourparler-checksum:" "$CSS" | sed -E "s/.*'([a-f0-9]+)'.*/\1/" || true)
+      if [ -n "$GREP" ]; then
+        color_print "$C_GREEN" "Checksum (local): $GREP"
+      else
+        color_print "$C_YELLOW" "Checksum not found in $CSS"
+      fi
+    else
+      color_print "$C_YELLOW" "CSS checksum file not found: $CSS"
+    fi
   fi
   exit 0
 fi
