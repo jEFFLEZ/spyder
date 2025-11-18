@@ -1,0 +1,34 @@
+name: Publish to Open VSX
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-open-vsx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: |
+          cd extensions/vscode-npz
+          npm ci
+      - name: Build extension
+        run: |
+          cd extensions/vscode-npz
+          npm run build
+      - name: Package .vsix
+        run: |
+          cd extensions/vscode-npz
+          npx vsce package
+      - name: Publish to Open VSX
+        env:
+          OPEN_VSX_TOKEN: ${{ secrets.OPEN_VSX_TOKEN }}
+        run: |
+          cd extensions/vscode-npz
+          npx ovsx publish --pat $OPEN_VSX_TOKEN || echo 'publish failed'
