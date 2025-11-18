@@ -57,6 +57,32 @@ function postJson(urlStr: string, body: any): Promise<any> {
   });
 }
 
+function getJson(urlStr: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(urlStr);
+      const lib = url.protocol === 'https:' ? https : http;
+      const req = lib.get(urlStr, (res) => {
+        let raw = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => (raw += chunk));
+        res.on('end', () => {
+          try {
+            const parsed = raw ? JSON.parse(raw) : {};
+            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) resolve(parsed);
+            else reject(new Error(parsed && parsed.error ? parsed.error : `HTTP ${res.statusCode}`));
+          } catch (e) {
+            reject(e);
+          }
+        });
+      });
+      req.on('error', (err) => reject(err));
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
 export function activate(context: vscode.ExtensionContext) {
   ensureTrialStarted(context);
 
@@ -133,7 +159,29 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  context.subscriptions.push(openDisposable, enterLicense);
+  const showStatus = vscode.commands.registerCommand('qflash.showLicenseStatus', async () => {
+    const cfg = vscode.workspace.getConfiguration('qflash');
+    const daemonUrl = cfg.get<string>('daemonUrl') || 'http://localhost:4500';
+    const statusUrl = `${daemonUrl.replace(/\/$/, '')}/license/status`;
+    try {
+      const res = await getJson(statusUrl);
+      if (!res || !res.success) {
+        vscode.window.showInformationMessage('No license information available');
+        return;
+      }
+      const lic = res.license;
+      if (!lic) {
+        vscode.window.showInformationMessage('No local license installed');
+        return;
+      }
+      const exp = lic.expiresAt ? new Date(lic.expiresAt).toLocaleString() : 'never (subscription)';
+      vscode.window.showInformationMessage(`License: ${lic.key} product=${lic.product_id} expires=${exp} valid=${res.valid}`);
+    } catch (err: any) {
+      vscode.window.showErrorMessage(`Failed to fetch status: ${err && err.message ? err.message : String(err)}`);
+    }
+  });
+
+  context.subscriptions.push(openDisposable, enterLicense, showStatus);
 }
 
 export function deactivate() {}

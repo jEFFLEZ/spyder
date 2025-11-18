@@ -1,9 +1,9 @@
 {
   "name": "qflash",
-  "displayName": "QFlash",
+  "displayName": "qflash",
   "description": "Visualize NPZ engine scores and manage lanes from VS Code.",
   "version": "0.0.1",
-  "publisher": "funeste38",
+  "publisher": "qflash",
   "engines": { "vscode": "^1.70.0" },
   "repository": {
     "type": "git",
@@ -27,6 +27,10 @@
       {
         "command": "qflash.openPanel",
         "title": "QFlash: Open Panel"
+      },
+      {
+        "command": "qflash.showLicenseStatus",
+        "title": "QFlash: Show License Status"
       }
     ],
     "configuration": {

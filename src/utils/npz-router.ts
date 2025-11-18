@@ -12,8 +12,8 @@ export type Lane = { id: number; name: string; url: string };
 
 export const DEFAULT_LANES: Lane[] = [
   { id: 0, name: 'primary', url: 'https://api.primary.local' },
-  { id: 1, name: 'backup-fast', url: 'https://api.fast.local' },
-  { id: 2, name: 'backup-slow', url: 'https://api.slow.local' },
+  { id: 1, name: 'backup-fast', url: 'https://fast.api.local' },
+  { id: 2, name: 'backup-slow', url: 'https://slow.api.local' },
 ];
 
 const STORE_FILE = path.join(process.cwd(), '.qflash', `${NS}-npz-lanes.json`);
@@ -100,7 +100,7 @@ function getCircuitMapForHost(host: string) {
   return m;
 }
 
-export function recordFailure(host: string, laneId: number) {
+export function recordFailure(host: string, laneId: number, latencyMs?: number) {
   const m = getCircuitMapForHost(host);
   const now = Date.now();
   let st = m.get(laneId) || { failures: 0 };
@@ -116,14 +116,14 @@ export function recordFailure(host: string, laneId: number) {
   }
   m.set(laneId, st);
   try { laneFailure.inc({ host, lane: String(laneId), namespace: NS } as any); } catch {}
-  try { engine.scoreLane(laneId, 1); } catch {}
+  try { engine.scoreLane(laneId, 1, latencyMs); } catch {}
 }
 
-export function recordSuccess(host: string, laneId: number) {
+export function recordSuccess(host: string, laneId: number, latencyMs?: number) {
   const m = getCircuitMapForHost(host);
   m.delete(laneId);
   try { laneSuccess.inc({ host, lane: String(laneId), namespace: NS } as any); } catch {}
-  try { engine.scoreLane(laneId, -1); } catch {}
+  try { engine.scoreLane(laneId, -1, latencyMs); } catch {}
 }
 
 export function isLaneTripped(host: string, laneId: number): boolean {
@@ -140,12 +140,13 @@ export function isLaneTripped(host: string, laneId: number): boolean {
   return false;
 }
 
-// lightweight fetch wrapper that returns {status, headers, body}
+// lightweight fetch wrapper that returns {status, headers, body, durationMs}
 async function tryFetch(fullUrl: string, options: any = {}, timeout = DEFAULT_TIMEOUT) {
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const signalOpt = controller ? { signal: controller.signal } : {};
   const opts = { method: options.method || 'GET', headers: options.headers || {}, body: options.body, ...signalOpt };
   let timer: NodeJS.Timeout | null = null;
+  const start = performance.now();
   if (controller) timer = setTimeout(() => controller.abort(), timeout);
   try {
     // prefer global fetch
@@ -161,15 +162,17 @@ async function tryFetch(fullUrl: string, options: any = {}, timeout = DEFAULT_TI
     const res = await ff(fullUrl, opts);
     const text = await res.text();
     if (timer) clearTimeout(timer);
-    return { ok: true, status: res.status, headers: res.headers, body: text };
+    const duration = Math.max(0, Math.round(performance.now() - start));
+    return { ok: true, status: res.status, headers: res.headers, body: text, durationMs: duration };
   } catch (err: any) {
     if (timer) clearTimeout(timer);
-    return { ok: false, error: err };
+    const duration = Math.max(0, Math.round(performance.now() - start));
+    return { ok: false, error: err, durationMs: duration };
   }
 }
 
 export type NpzRequest = { method?: string; url: string; headers?: Record<string, string>; body?: any; timeout?: number };
-export type NpzResponse = { status?: number; headers?: any; body?: string; error?: any; gate?: string; laneId?: number };
+export type NpzResponse = { status?: number; headers?: any; body?: string; error?: any; gate?: string; laneId?: number; durationMs?: number };
 
 export async function npzRoute(req: NpzRequest, lanes: Lane[] = DEFAULT_LANES): Promise<NpzResponse> {
   try {
@@ -188,13 +191,13 @@ export async function npzRoute(req: NpzRequest, lanes: Lane[] = DEFAULT_LANES): 
     if (t0.ok && t0.status && t0.status < 500) {
       logger.nez('NPZ', `primary succeeded (${primary.name})`);
       setPreferredLane(host, primary.id);
-      recordSuccess(host, primary.id);
-      return { status: t0.status, headers: t0.headers, body: t0.body, gate: 'primary', laneId: primary.id };
+      recordSuccess(host, primary.id, t0.durationMs);
+      return { status: t0.status, headers: t0.headers, body: t0.body, gate: 'primary', laneId: primary.id, durationMs: t0.durationMs };
     }
 
     // primary failed -> try fallback(s)
     logger.warn(`[NPZ] primary failed for ${primary.name}, running fallbacks`);
-    recordFailure(host, primary.id);
+    recordFailure(host, primary.id, t0.durationMs);
 
     for (let i = 1; i < ordered.length; i++) {
       const lane = ordered[i];
@@ -205,7 +208,7 @@ export async function npzRoute(req: NpzRequest, lanes: Lane[] = DEFAULT_LANES): 
         logger.nez('NPZ', `fallback lane ${lane.name} succeeded`);
         // set preferred to fallback for next time
         setPreferredLane(host, lane.id);
-        recordSuccess(host, lane.id);
+        recordSuccess(host, lane.id, res.durationMs);
 
         // replay primary with an extra header (T2)
         const replayHeaders = Object.assign({}, req.headers || {});
@@ -215,20 +218,20 @@ export async function npzRoute(req: NpzRequest, lanes: Lane[] = DEFAULT_LANES): 
         const replay = await tryFetch(replayUrl, { method: req.method, headers: replayHeaders, body: req.body }, timeout);
         if (replay.ok && replay.status && replay.status < 500) {
           logger.nez('NPZ', `replayed primary succeeded after fallback`);
-          return { status: replay.status, headers: replay.headers, body: replay.body, gate: 'replay', laneId: primary.id };
+          return { status: replay.status, headers: replay.headers, body: replay.body, gate: 'replay', laneId: primary.id, durationMs: replay.durationMs };
         }
 
         // if replay failed, return fallback result
-        return { status: res.status, headers: res.headers, body: res.body, gate: 'fallback', laneId: lane.id };
+        return { status: res.status, headers: res.headers, body: res.body, gate: 'fallback', laneId: lane.id, durationMs: res.durationMs };
       } else {
-        recordFailure(host, lane.id);
+        recordFailure(host, lane.id, res.durationMs);
       }
     }
 
     // if all failed, return primary error or generic
     logger.warn('[NPZ] all lanes failed');
-    if (t0 && !t0.ok) return { error: t0.error, gate: 'fail' };
-    return { status: t0.status, body: t0.body, gate: 'fail' };
+    if (t0 && !t0.ok) return { error: t0.error, gate: 'fail', durationMs: t0.durationMs };
+    return { status: t0.status, body: t0.body, gate: 'fail', durationMs: t0.durationMs };
   } catch (err) {
     return { error: err, gate: 'error' };
   }
