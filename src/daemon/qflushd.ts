@@ -60,18 +60,9 @@ const app = express();
 app.use(express.json());
 
 // load Rome index from .qflush/rome-index.json (if present)
-function loadRomeIndex() {
-  try {
-    const idxPath = path.join(process.cwd(), '.qflush', 'rome-index.json');
-    if (fs.existsSync(idxPath)) {
-      const raw = fs.readFileSync(idxPath, 'utf8') || '{}';
-      return JSON.parse(raw);
-    }
-  } catch (e) {
-    // ignore
-  }
-  return {};
-}
+import { loadRomeIndexFromDisk, getCachedRomeIndex, startRomeIndexAutoRefresh } from '../rome/index-loader';
+
+startRomeIndexAutoRefresh(15 * 1000); // refresh every 15s
 
 // --- One-time checksum cache ---
 // If Redis is configured, use Redis keys with TTL and a sorted set index for listing. Otherwise fallback to in-memory Map.
@@ -223,6 +214,21 @@ app.get('/npz/checksum/list', async (_req: any, res: any) => {
   return res.json({ success: true, count: results.length, items: results, backend: 'memory' });
 });
 
+app.get('/npz/rome-index', (_req: any, res: any) => {
+  try {
+    const index = getCachedRomeIndex();
+    const q: any = _req.query || {};
+    if (q.type) {
+      const t = String(q.type);
+      const items = Object.values(index).filter((r: any) => r.type === t);
+      return res.json({ success: true, count: items.length, items });
+    }
+    return res.json({ success: true, count: Object.keys(index).length, items: Object.values(index) });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: String(e) });
+  }
+});
+
 // clear checksums: DELETE /npz/checksum/clear
 app.delete('/npz/checksum/clear', async (_req: any, res: any) => {
   if (redisClient) {
@@ -238,43 +244,6 @@ app.delete('/npz/checksum/clear', async (_req: any, res: any) => {
   checksumCache.clear();
   audit({ t: Date.now(), event: 'checksum_cleared_mem', cleared });
   return res.json({ success: true, cleared, backend: 'memory' });
-});
-
-app.get('/npz/rome-index', (_req: any, res: any) => {
-  try {
-    const index = loadRomeIndex();
-    const q: any = _req.query || {};
-    if (q.type) {
-      const t = String(q.type);
-      const items = Object.values(index).filter((r: any) => r.type === t);
-      return res.json({ success: true, count: items.length, items });
-    }
-    return res.json({ success: true, count: Object.keys(index).length, items: Object.values(index) });
-  } catch (e) {
-    return res.status(500).json({ success: false, error: String(e) });
-  }
-});
-
-app.post('/license/activate', async (req: any, res: any) => {
-  const { key, product_id } = req.body || {};
-  if (!key) return res.status(400).json({ success: false, error: 'missing key' });
-  audit({ t: Date.now(), action: 'activate_attempt', key: key.replace(/.(?=.{4})/g, '*'), product_id });
-
-  if (!gumroad || typeof gumroad.activateLicense !== 'function') {
-    return res.status(501).json({ success: false, error: 'gumroad helper not available on daemon' });
-  }
-
-  const token = process.env.GUMROAD_TOKEN || '';
-  const pid = product_id || process.env.GUMROAD_PRODUCT_ID || process.env.GUMROAD_PRODUCT_YEARLY || process.env.GUMROAD_PRODUCT_MONTHLY || '';
-
-  try {
-    const rec = await gumroad.activateLicense(pid, key, token);
-    audit({ t: Date.now(), action: 'activate_success', key: key.replace(/.(?=.{4})/g, '*'), product_id: pid });
-    return res.json({ success: true, license: rec });
-  } catch (err: any) {
-    audit({ t: Date.now(), action: 'activate_failed', err: String(err), product_id: pid });
-    return res.status(400).json({ success: false, error: err && err.message ? err.message : String(err) });
-  }
 });
 
 app.get('/license/status', (_req: any, res: any) => {
@@ -391,6 +360,24 @@ try {
   // ignore if module not present
 }
 
-app.listen(PORT, () => {
-  console.log(`qflush running on http://localhost:${PORT}`);
-});
+let server: any = null;
+export function startServer(port?: number) {
+  const p = port || PORT;
+  server = app.listen(p, () => {
+    console.log(`qflush running on http://localhost:${p}`);
+  });
+  return server;
+}
+
+export function stopServer() {
+  try {
+    if (server) server.close();
+  } catch (e) {
+    // ignore
+  }
+}
+
+// if the module is run directly, start the server
+if (require.main === module) {
+  startServer();
+}

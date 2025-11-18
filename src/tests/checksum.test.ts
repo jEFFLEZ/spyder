@@ -1,13 +1,28 @@
+// ROME-TAG: 0xBBFCDC
+
 import fetch from 'node-fetch';
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import net from 'net';
 
-const DAEMON_PORT = 4555;
-const DAEMON_URL = `http://localhost:${DAEMON_PORT}`;
+let DAEMON_PORT = 0;
+const DAEMON_URL = () => `http://localhost:${DAEMON_PORT}`;
 let daemonProc: any = null;
 
 function wait(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+
+function getFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.listen(0, () => {
+      // @ts-ignore
+      const port = srv.address().port;
+      srv.close(() => resolve(port));
+    });
+    srv.on('error', (err) => reject(err));
+  });
+}
 
 async function startDaemon() {
   // build first
@@ -15,6 +30,9 @@ async function startDaemon() {
     const t = spawn(process.execPath, [path.join(process.cwd(), 'node_modules', 'typescript', 'lib', 'tsc.js'), '-p', '.']);
     t.on('close', (code) => code === 0 ? resolve() : reject(new Error('tsc failed')));
   });
+
+  DAEMON_PORT = await getFreePort();
+
   daemonProc = spawn(process.execPath, [path.join(process.cwd(), 'dist', 'daemon', 'qflushd.js')], { env: { ...process.env, QFLUSHD_PORT: String(DAEMON_PORT) }, stdio: 'inherit' });
   await wait(400);
 }
@@ -31,25 +49,25 @@ export async function runTests() {
   try {
     await startDaemon();
     // store
-    let res = await fetch(`${DAEMON_URL}/npz/checksum/store`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 't1', checksum: 'abc', ttlMs: 2000 }) });
+    let res = await fetch(`${DAEMON_URL()}/npz/checksum/store`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 't1', checksum: 'abc', ttlMs: 2000 }) });
     let j = await res.json();
     if (!j.success) throw new Error('store failed');
 
-    res = await fetch(`${DAEMON_URL}/npz/checksum/list`);
+    res = await fetch(`${DAEMON_URL()}/npz/checksum/list`);
     j = await res.json();
     if (!j.success || j.count === 0) throw new Error('list failed');
 
     // verify mismatch
-    res = await fetch(`${DAEMON_URL}/npz/checksum/verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 't1', checksum: 'wrong' }) });
+    res = await fetch(`${DAEMON_URL()}/npz/checksum/verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 't1', checksum: 'wrong' }) });
     if (res.status === 200) throw new Error('mismatch should fail');
 
     // verify correct
-    res = await fetch(`${DAEMON_URL}/npz/checksum/verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 't1', checksum: 'abc' }) });
+    res = await fetch(`${DAEMON_URL()}/npz/checksum/verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 't1', checksum: 'abc' }) });
     j = await res.json();
     if (!j.success) throw new Error('verify failed');
 
     // clear
-    res = await fetch(`${DAEMON_URL}/npz/checksum/clear`, { method: 'DELETE' });
+    res = await fetch(`${DAEMON_URL()}/npz/checksum/clear`, { method: 'DELETE' });
     j = await res.json();
     if (!j.success) throw new Error('clear failed');
 
