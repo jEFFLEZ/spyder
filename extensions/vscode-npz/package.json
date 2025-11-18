@@ -1,0 +1,28 @@
+{
+  "name": "vscode-npz",
+  "displayName": "NPZ Visual",
+  "description": "Visualize NPZ engine scores and manage lanes from VS Code.",
+  "version": "0.0.1",
+  "engines": { "vscode": "^1.70.0" },
+  "main": "./out/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p ./",
+    "watch": "tsc -p ./ -w"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.70.0",
+    "vscode": "^1.1.59"
+  },
+  "activationEvents": ["onCommand:npz.openScores"],
+  "contributes": {
+    "commands": [
+      {
+        "command": "npz.openScores",
+        "title": "NPZ: Open Scores"
+      }
+    ]
+  }
+}
