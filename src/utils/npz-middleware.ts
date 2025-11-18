@@ -5,11 +5,13 @@ import npzStore from './npz-store';
 import npz from './npz';
 import logger from './logger';
 import client from 'prom-client';
+import { getNpzNamespace } from './npz-config';
 
+const NS = getNpzNamespace();
 const requestDuration = new client.Histogram({
-  name: 'npz_request_duration_seconds',
+  name: `${NS}_request_duration_seconds`,
   help: 'Duration of NPZ handled requests',
-  labelNames: ['gate', 'lane', 'npz_id'] as string[],
+  labelNames: ['gate', 'lane', 'npz_id', 'namespace'] as string[],
 });
 
 export type NpzMiddlewareOptions = {
@@ -19,7 +21,7 @@ export type NpzMiddlewareOptions = {
 };
 
 export function npzMiddleware(opts: NpzMiddlewareOptions = {}) {
-  const cookieName = opts.cookieName || 'npz_lane';
+  const cookieName = opts.cookieName || `${NS}_lane`;
   const lanes = opts.lanes || undefined;
   const maxAge = opts.cookieMaxAge || 24 * 3600; // seconds
 
@@ -48,19 +50,7 @@ export function npzMiddleware(opts: NpzMiddlewareOptions = {}) {
         const duration = diff[0] + diff[1] / 1e9;
         const gate = (report as any).gate || 'unknown';
         const laneId = (report as any).laneId !== undefined ? String((report as any).laneId) : String(lane || 'unknown');
-        requestDuration.labels(gate, laneId, npz_id).observe(duration);
-
-        // increment counters if present
-        try {
-          if ((report as any).laneId !== undefined && (report as any).gate) {
-            if ((report as any).gate === 'primary' || (report as any).gate === 'replay') {
-              // success on primary/replay
-              // laneSuccess counter is incremented by npz-router.recordSuccess
-            } else if ((report as any).gate === 'fallback') {
-              // fallback success
-            }
-          }
-        } catch (e) {}
+        requestDuration.labels(gate, laneId, npz_id, NS).observe(duration);
 
         logger.nez('NPZ', `npz_id=${npz_id} gate=${gate} lane=${laneId} duration=${duration.toFixed(3)}s`);
 

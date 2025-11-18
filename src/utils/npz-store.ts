@@ -1,9 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import { createRecord as redisCreate, getRecord as redisGet, updateRecord as redisUpdate } from './npz-store-redis';
+import { getNpzNamespace } from './npz-config';
 
+const NS = getNpzNamespace();
 const STORE_DIR = path.join(process.cwd(), '.qflash');
-const REQUEST_STORE = path.join(STORE_DIR, 'npz-requests.json');
+const REQUEST_STORE = path.join(STORE_DIR, `${NS}-npz-requests.json`);
 
 type NpzRecord = {
   id: string;

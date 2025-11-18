@@ -3,6 +3,9 @@ import path from 'path';
 import { performance } from 'perf_hooks';
 import logger from './logger';
 import client from 'prom-client';
+import { getNpzNamespace } from './npz-config';
+
+const NS = getNpzNamespace();
 
 export type Lane = { id: number; name: string; url: string };
 
@@ -12,7 +15,7 @@ export const DEFAULT_LANES: Lane[] = [
   { id: 2, name: 'backup-slow', url: 'https://api.slow.local' },
 ];
 
-const STORE_FILE = path.join(process.cwd(), '.qflash', 'npz-lanes.json');
+const STORE_FILE = path.join(process.cwd(), '.qflash', `${NS}-npz-lanes.json`);
 const DEFAULT_TIMEOUT = 3000; // ms
 const PREFERRED_TTL = 24 * 3600 * 1000; // 24h
 
@@ -32,8 +35,8 @@ type CircuitState = {
 const circuit: Map<string, Map<number, CircuitState>> = new Map(); // host -> laneId -> state
 
 // Prometheus metrics
-const laneSuccess = new client.Counter({ name: 'npz_lane_success_total', help: 'NPZ lane successes', labelNames: ['host', 'lane'] });
-const laneFailure = new client.Counter({ name: 'npz_lane_failure_total', help: 'NPZ lane failures', labelNames: ['host', 'lane'] });
+const laneSuccess = new client.Counter({ name: `${NS}_lane_success_total`, help: 'NPZ lane successes', labelNames: ['host', 'lane', 'namespace'] });
+const laneFailure = new client.Counter({ name: `${NS}_lane_failure_total`, help: 'NPZ lane failures', labelNames: ['host', 'lane', 'namespace'] });
 
 function ensureStoreDir() {
   const dir = path.dirname(STORE_FILE);
@@ -111,13 +114,13 @@ export function recordFailure(host: string, laneId: number) {
     logger.warn(`npz-router: lane ${laneId} for ${host} tripped until ${new Date(st.trippedUntil)}`);
   }
   m.set(laneId, st);
-  try { laneFailure.inc({ host, lane: String(laneId) } as any); } catch {}
+  try { laneFailure.inc({ host, lane: String(laneId), namespace: NS } as any); } catch {}
 }
 
 export function recordSuccess(host: string, laneId: number) {
   const m = getCircuitMapForHost(host);
   m.delete(laneId);
-  try { laneSuccess.inc({ host, lane: String(laneId) } as any); } catch {}
+  try { laneSuccess.inc({ host, lane: String(laneId), namespace: NS } as any); } catch {}
 }
 
 export function isLaneTripped(host: string, laneId: number): boolean {
