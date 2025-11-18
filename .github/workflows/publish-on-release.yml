@@ -8,6 +8,9 @@ jobs:
   CI:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
       - run: echo "CI check placeholder"
 
   publish:
@@ -15,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: false
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
@@ -24,6 +29,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          npm ci
+          npm install --no-audit --no-fund
           npm run build
           npm publish --access public
