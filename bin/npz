@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Lightweight launcher to run the qflash NPZ daemon without npm
+# Usage: ./bin/npz [args]
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+NODE_CMD="${NODE:-node}"
+exec "$NODE_CMD" "$DIR/dist/daemon/qflashd.js" "$@"
