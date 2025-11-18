@@ -35,14 +35,16 @@ Latest release: v0.1.4 — https://github.com/jEFFLEZ/qflush/releases/tag/v0.1.4
 
 ## Install
 
-Global (recommended):
+- From npm:
 
+```
 npm install -g @funeste38/qflush
+```
 
-PowerShell one-liner (if installer hosted):
+- Or download the release tarball from GitHub and install locally:
 
-```powershell
-iwr -useb https://raw.githubusercontent.com/jEFFLEZ/qflush/main/installers/install-qflush.ps1 | iex
+```
+npm install -g ./funeste38-qflush-3.0.3.tgz
 ```
 
 ## Commercial license

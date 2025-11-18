@@ -12,6 +12,10 @@ Highlights:
 - Tests: reliable integration tests for checksums and rome-index
 - Docs: Rome index diagram, README and publishing guidance
 
+Checksums
+
+- funeste38-qflush-3.0.3.tgz — SHA256: AAB940267E13C613EB30564613EE40FBA31729DCF2BE01AE897C03C33DD079F8
+
 Migration notes:
 - The Rome tag algorithm is stable (v1) and computed from `type|path`. Existing tags inserted by the linter or extension will match.
 - To adopt in CI, add `npm run lint:rome` as a workflow step to ensure tags remain consistent.
