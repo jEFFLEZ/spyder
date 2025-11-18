@@ -1,29 +1,40 @@
-import http from 'http';
+import express from 'express';
+import cookieParser from 'cookie-parser';
 import { listRunning, startProcess, stopProcess, stopAll } from '../supervisor';
-import { logger } from '../utils/logger';
+import logger from '../utils/logger';
+import metricsMiddleware from '../utils/npz-metrics';
+import adminRouter from '../utils/npz-admin';
+import npzMiddleware from '../utils/npz-middleware';
 
 const PORT = process.env.QFLASHD_PORT ? Number(process.env.QFLASHD_PORT) : 4500;
 
-const server = http.createServer(async (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  if (req.url === '/status') {
-    const running = listRunning();
-    res.end(JSON.stringify({ running }));
-    return;
-  }
-  if (req.url && req.url.startsWith('/stop')) {
-    const name = req.url.split('/')[2];
-    if (name) {
-      const ok = stopProcess(name);
-      res.end(JSON.stringify({ ok }));
-      return;
-    }
-    stopAll();
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
-  res.statusCode = 404;
-  res.end(JSON.stringify({ error: 'not found' }));
+const app = express();
+app.use(cookieParser());
+app.use(express.json());
+
+// Prometheus /metrics
+app.use(metricsMiddleware());
+
+// NPZ middleware on /proxy (optional)
+app.use('/proxy', npzMiddleware());
+
+// Admin endpoints (npz inspect, lanes, etc.)
+app.use('/', adminRouter);
+
+app.get('/status', (req, res) => {
+  const running = listRunning();
+  res.json({ running });
 });
 
-server.listen(PORT, () => logger.success(`qflashd running on http://localhost:${PORT}`));
+app.get('/stop/:name?', (req, res) => {
+  const name = req.params.name;
+  if (name) {
+    const ok = stopProcess(name);
+    res.json({ ok });
+    return;
+  }
+  stopAll();
+  res.json({ ok: true });
+});
+
+app.listen(PORT, () => logger.success(`qflashd running on http://localhost:${PORT}`));
