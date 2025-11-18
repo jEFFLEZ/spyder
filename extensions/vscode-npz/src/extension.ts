@@ -83,6 +83,24 @@ function getJson(urlStr: string): Promise<any> {
   });
 }
 
+async function saveRomeIndexRecord(record: { path: string; type: string; tag: string }) {
+  try {
+    const root = process.cwd();
+    const dir = path.join(root, '.qflush');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const idxFile = path.join(dir, 'rome-index.json');
+    let idx: any = {};
+    if (fs.existsSync(idxFile)) {
+      try { idx = JSON.parse(fs.readFileSync(idxFile, 'utf8') || '{}'); } catch { idx = {}; }
+    }
+    idx[record.path] = { type: record.type, tag: record.tag, savedAt: Date.now() };
+    fs.writeFileSync(idxFile, JSON.stringify(idx, null, 2), 'utf8');
+    return { success: true, record: idx[record.path] };
+  } catch (e) {
+    return { success: false, error: String(e) };
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
   ensureTrialStarted(context);
 
@@ -182,6 +200,12 @@ export function activate(context: vscode.ExtensionContext) {
           } catch (e) {
             panel.webview.postMessage({ type: 'npzClearResult', data: { success: false, error: String(e) } });
           }
+        }
+
+        if (msg && msg.type === 'npzIndexTag') {
+          const rec = msg.payload;
+          const r = await saveRomeIndexRecord({ path: rec.path, type: rec.type, tag: rec.tag });
+          panel.webview.postMessage(Object.assign({ type: 'npzIndexTagResult' }, r));
         }
       } catch (e) {
         vscode.window.showErrorMessage('Extension message handler failed: ' + String(e));
