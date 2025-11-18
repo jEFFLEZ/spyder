@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.0.3 — Release
+## v3.0.3 — Release (2025-11-18)
 
 Highlights:
 
