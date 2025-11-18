@@ -153,3 +153,27 @@ Example:
 
 ```
 NPZ_NAMESPACE=funest NPZ_ADMIN_TOKEN=secret REDIS_URL=redis://127.0.0.1:6379 npm run build && node dist/daemon/qflushd.js
+```
+
+## Copilot Bridge / Telemetry
+
+QFLUSH can emit telemetry and engine state to a Copilot consumer via multiple transports: webhook, SSE and file. Configure via `.qflush/copilot.json`.
+
+Example config (.qflush/copilot.json):
+
+```json
+{
+  "enabled": true,
+  "transports": ["file","webhook"],
+  "webhookUrl": "https://copilot.example/api/telemetry",
+  "hmacSecretEnv": "COPILOT_HMAC",
+  "filePath": ".qflush/telemetry.json"
+}
+```
+
+Security
+- Use `QFLUSH_TOKEN` env var on the daemon to protect `/copilot/*` and `/npz/engine/*` endpoints. The CLI and Copilot should include the `x-qflush-token` header.
+- Webhook payloads are signed with HMAC sha256 using the secret stored in the env var referenced by `hmacSecretEnv`.
+
+Telemetry persistence
+- Telemetry stored in `.qflush/telemetry.json` and persisted to sqlite (`.qflush/qflush.db`) when `better-sqlite3` is available.

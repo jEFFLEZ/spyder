@@ -63,3 +63,24 @@ jobs:
       - name: Integration dry-run
         run: |
           node dist/index.js start --verbose --dry-run
+
+  engine-dry-run:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Engine dry-run (validate rules)
+        run: |
+          node dist/index.js engine --dry-run
+        timeout-minutes: 10
