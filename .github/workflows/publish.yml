@@ -14,6 +14,10 @@ jobs:
         with:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org'
+      - name: Validate tokens
+        run: |
+          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then echo "NPM_TOKEN is missing"; exit 1; fi
+          if [ -z "${{ secrets.GUMROAD_TOKEN }}" ]; then echo "Warning: GUMROAD_TOKEN is not set"; fi
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Build
