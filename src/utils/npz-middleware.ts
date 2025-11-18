@@ -9,7 +9,7 @@ import client from 'prom-client';
 const requestDuration = new client.Histogram({
   name: 'npz_request_duration_seconds',
   help: 'Duration of NPZ handled requests',
-  labelNames: ['gate', 'lane'] as string[],
+  labelNames: ['gate', 'lane', 'npz_id'] as string[],
 });
 
 export type NpzMiddlewareOptions = {
@@ -35,7 +35,7 @@ export function npzMiddleware(opts: NpzMiddlewareOptions = {}) {
 
       const report = await npzRoute({ method: req.method, url: fullUrl, headers: req.headers as any, body: (req as any).body });
 
-      if (report && (report.status || report.body)) {
+      if (report && (report.status || report.body || report.error)) {
         // update record with lane if stored via router
         const rec = await npzStore.getRequestRecord(npz_id);
         const lane = rec?.laneId;
@@ -47,7 +47,22 @@ export function npzMiddleware(opts: NpzMiddlewareOptions = {}) {
         const diff = process.hrtime(start);
         const duration = diff[0] + diff[1] / 1e9;
         const gate = (report as any).gate || 'unknown';
-        requestDuration.labels(gate, String(lane || 'unknown')).observe(duration);
+        const laneId = (report as any).laneId !== undefined ? String((report as any).laneId) : String(lane || 'unknown');
+        requestDuration.labels(gate, laneId, npz_id).observe(duration);
+
+        // increment counters if present
+        try {
+          if ((report as any).laneId !== undefined && (report as any).gate) {
+            if ((report as any).gate === 'primary' || (report as any).gate === 'replay') {
+              // success on primary/replay
+              // laneSuccess counter is incremented by npz-router.recordSuccess
+            } else if ((report as any).gate === 'fallback') {
+              // fallback success
+            }
+          }
+        } catch (e) {}
+
+        logger.nez('NPZ', `npz_id=${npz_id} gate=${gate} lane=${laneId} duration=${duration.toFixed(3)}s`);
 
         if (report.status) res.status(report.status);
         // set headers (careful with set-cookie)
@@ -59,7 +74,7 @@ export function npzMiddleware(opts: NpzMiddlewareOptions = {}) {
             }
           } catch (e) {}
         }
-        res.send(report.body || '');
+        res.send(report.body || (report.error ? String((report as any).error) : ''));
         return;
       }
 

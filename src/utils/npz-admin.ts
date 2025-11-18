@@ -4,6 +4,16 @@ import npzRouter from './npz-router';
 
 const router = express.Router();
 
+function requireToken(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const token = process.env.NPZ_ADMIN_TOKEN;
+  if (!token) return res.status(403).json({ error: 'admin token not configured' });
+  const provided = req.headers['x-admin-token'] || req.query.token;
+  if (!provided || provided !== token) return res.status(401).json({ error: 'invalid token' });
+  next();
+}
+
+router.use('/npz', requireToken);
+
 router.get('/npz/inspect/:id', async (req, res) => {
   const r = await npzStore.getRequestRecord(req.params.id);
   res.json(r || { error: 'not found' });

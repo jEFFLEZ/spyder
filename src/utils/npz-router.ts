@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { performance } from 'perf_hooks';
 import logger from './logger';
+import client from 'prom-client';
 
 export type Lane = { id: number; name: string; url: string };
 
@@ -29,6 +30,10 @@ type CircuitState = {
 };
 
 const circuit: Map<string, Map<number, CircuitState>> = new Map(); // host -> laneId -> state
+
+// Prometheus metrics
+const laneSuccess = new client.Counter({ name: 'npz_lane_success_total', help: 'NPZ lane successes', labelNames: ['host', 'lane'] });
+const laneFailure = new client.Counter({ name: 'npz_lane_failure_total', help: 'NPZ lane failures', labelNames: ['host', 'lane'] });
 
 function ensureStoreDir() {
   const dir = path.dirname(STORE_FILE);
@@ -106,11 +111,13 @@ export function recordFailure(host: string, laneId: number) {
     logger.warn(`npz-router: lane ${laneId} for ${host} tripped until ${new Date(st.trippedUntil)}`);
   }
   m.set(laneId, st);
+  try { laneFailure.inc({ host, lane: String(laneId) } as any); } catch {}
 }
 
 export function recordSuccess(host: string, laneId: number) {
   const m = getCircuitMapForHost(host);
   m.delete(laneId);
+  try { laneSuccess.inc({ host, lane: String(laneId) } as any); } catch {}
 }
 
 export function isLaneTripped(host: string, laneId: number): boolean {
