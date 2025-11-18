@@ -1,3 +1,5 @@
+// ROME-TAG: 0xA1EC50
+
 import 'dotenv/config';
 const express = require('express');
 const fs = require('fs');
@@ -56,6 +58,20 @@ function audit(line: any) {
 
 const app = express();
 app.use(express.json());
+
+// load Rome index from .qflush/rome-index.json (if present)
+function loadRomeIndex() {
+  try {
+    const idxPath = path.join(process.cwd(), '.qflush', 'rome-index.json');
+    if (fs.existsSync(idxPath)) {
+      const raw = fs.readFileSync(idxPath, 'utf8') || '{}';
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    // ignore
+  }
+  return {};
+}
 
 // --- One-time checksum cache ---
 // If Redis is configured, use Redis keys with TTL and a sorted set index for listing. Otherwise fallback to in-memory Map.
@@ -222,6 +238,21 @@ app.delete('/npz/checksum/clear', async (_req: any, res: any) => {
   checksumCache.clear();
   audit({ t: Date.now(), event: 'checksum_cleared_mem', cleared });
   return res.json({ success: true, cleared, backend: 'memory' });
+});
+
+app.get('/npz/rome-index', (_req: any, res: any) => {
+  try {
+    const index = loadRomeIndex();
+    const q: any = _req.query || {};
+    if (q.type) {
+      const t = String(q.type);
+      const items = Object.values(index).filter((r: any) => r.type === t);
+      return res.json({ success: true, count: items.length, items });
+    }
+    return res.json({ success: true, count: Object.keys(index).length, items: Object.values(index) });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: String(e) });
+  }
 });
 
 app.post('/license/activate', async (req: any, res: any) => {
