@@ -1,0 +1,138 @@
+# @funeste38/qflash ⚡
+
+QFLASH is the orchestrator of the Funesterie ecosystem.
+
+This repository includes a local daemon `qflash` which can verify Gumroad license keys locally.
+
+Local license activation
+
+- Start daemon: `npm run build && node dist/daemon/qflashd.js`
+- Activate: POST `http://localhost:4500/license/activate` with `{ "key": "..." }`
+- Status: GET `http://localhost:4500/license/status`
+
+For most use cases no public endpoint or webhook is required — the daemon verifies keys directly with Gumroad.
+
+## Release
+
+Latest release: v0.1.4 — https://github.com/jEFFLEZ/qflash/releases/tag/v0.1.4
+
+## Install
+
+Global (recommended):
+
+npm install -g @funeste38/qflash
+
+PowerShell one-liner (if installer hosted):
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/jEFFLEZ/qflash/main/installers/install-qflash.ps1 | iex
+```
+
+## Commercial license
+
+To purchase a commercial license for FCL:
+https://cellaurojeff.gumroad.com/l/jxktq
+
+## Commands
+
+- `qflash start`      → launch ecosystem (rome, nezlephant, envaptex, freeland, bat)
+- `qflash kill`       → kill all processes cleanly
+- `qflash purge`      → flush caches + logs + sessions
+- `qflash inspect`    → display status and active ports
+- `qflash config`     → generate default .env/config files
+
+## Examples and templates
+
+Example compose files are provided in `examples/`:
+
+- `examples/funesterie.yml` — YAML compose example
+- `examples/funesterie.fcl` — Funesterie Config Language (FCL) example
+
+Use `qflash compose up` to bring up the example stack.
+
+## Flags and advanced options
+
+Global flags (examples):
+- `--dev`            Enable developer mode (may change logging/behavior)
+- `--fresh`          Implicitly purge before starting (maps to `purge` -> `start`)
+- `--force`          Force restart semantics (may add `kill` when starting)
+- `--proxy=NAME`     Proxy selection, forwarded to modules
+
+Service targeting:
+- `--service <name>` Select a service to target (examples: `rome`, `nezlephant`, `envaptex`, `freeland`, `bat`).
+- `--path <path>`    Assign a path for the most recent `--service` declared.
+- `--token <token>`  Assign a token for the most recent `--service` declared.
+
+Examples:
+
+```
+qflash start --service rome --path D:/rome --token ABC123
+qflash start --service nezlephant --service freeland
+qflash start --service nezlephant --service freeland --fresh
+qflash config --service freeland
+qflash purge --fresh
+```
+
+## Migration guide (meta-package)
+
+If you currently depend on individual Funesterie packages like `@funeste38/rome`, `@funeste38/nezlephant`, `@funeste38/freeland`, `@funeste38/bat`, prefer to switch to the meta-package `@funeste38/qflash` which re-exports them.
+
+Quick steps:
+
+1. Add the meta-package in your app:
+
+```bash
+npm install @funeste38/qflash
+```
+
+2. Replace imports in your codebase (example):
+
+Before:
+```js
+import { run } from '@funeste38/rome'
+import { encode } from '@funeste38/nezlephant'
+```
+
+After:
+```js
+import { Rome, Nez, Freeland, Bat } from '@funeste38/qflash'
+Rome.run(...)
+Nez.encode(...)
+```
+
+3. In `package.json` of the app, keep only the dependency on `@funeste38/qflash` and remove the older individual packages.
+
+4. For branch migration: prefer creating new branches from `main` (which contains `@funeste38/qflash`). For older branches, replace imports during the merge.
+
+## One-liner installer
+
+Example PowerShell one-liner (host your installer script raw on GitHub or your CDN):
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/jEFFLEZ/qflash/main/installers/install-qflash.ps1 | iex
+```
+
+## Future
+
+Future improvements will focus on better detection, richer SmartChain rules and optional integrations.
+
+## NPZ (Joker)
+
+NPZ is the resolver/router used by qflash to launch modules and proxy requests.
+
+Environment variables:
+
+- `NPZ_NAMESPACE` - optional, default `npz`. Namespaces metrics and keys to avoid conflicts.
+- `REDIS_URL` - optional, if set NPZ uses Redis for request store.
+- `NPZ_ADMIN_TOKEN` - required to access admin endpoints (`/npz/*`).
+- `QFLASHD_PORT` - optional, daemon port (default 4500).
+
+Commands:
+
+- `qflash daemon` - run the qflash daemon (exposes /metrics, /proxy, /npz admin)
+- `qflash npz:inspect <id>` or `qflash npz inspect <id>` - inspect a stored NPZ request
+
+Example:
+
+```
+NPZ_NAMESPACE=funest NPZ_ADMIN_TOKEN=secret REDIS_URL=redis://127.0.0.1:6379 npm run build && node dist/daemon/qflashd.js

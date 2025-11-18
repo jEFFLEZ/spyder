@@ -4,12 +4,13 @@
     "module": "CommonJS",
     "declaration": true,
     "outDir": "dist",
-    "rootDir": "qflash/src",
+    "rootDir": "src",
     "strict": true,
     "esModuleInterop": true,
     "types": ["node"],
-    "typeRoots": ["./qflash/node_modules/@types", "./node_modules/@types"],
+    "skipLibCheck": true,
     "moduleResolution": "node"
   },
-  "include": ["qflash/src"]
+  "include": ["src"],
+  "exclude": ["src/tests", "dist", "node_modules"]
 }

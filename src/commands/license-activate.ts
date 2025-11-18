@@ -1,0 +1,22 @@
+import license from '../utils/license';
+
+export default async function runLicenseActivate(args: string[]) {
+  const key = args[0];
+  const product = args[1] || process.env.GUMROAD_PRODUCT_MONTHLY;
+  if (!key) {
+    console.error('usage: qflash license:activate <key> [product_id]');
+    return 1;
+  }
+  try {
+    const res = await license.activateLicense(key, product);
+    if (res.ok) {
+      console.log('License activated:', res.license);
+      return 0;
+    }
+    console.error('Activation failed:', res.error);
+    return 2;
+  } catch (e) {
+    console.error('Activation error:', e);
+    return 3;
+  }
+}

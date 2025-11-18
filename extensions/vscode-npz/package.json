@@ -1,0 +1,54 @@
+{
+  "name": "qflash",
+  "displayName": "qflash",
+  "description": "Visualize NPZ engine scores and manage lanes from VS Code.",
+  "version": "0.0.1",
+  "publisher": "qflash",
+  "icon": "icon.png",
+  "engines": { "vscode": "^1.70.0" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jEFFLEZ/qflash.git"
+  },
+  "license": "MIT",
+  "main": "./out/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p ./",
+    "watch": "tsc -p ./ -w"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.70.0"
+  },
+  "activationEvents": ["onCommand:qflash.openPanel"],
+  "contributes": {
+    "commands": [
+      {
+        "command": "qflash.openPanel",
+        "title": "QFlash: Open Panel"
+      },
+      {
+        "command": "qflash.showLicenseStatus",
+        "title": "QFlash: Show License Status"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "QFlash",
+      "properties": {
+        "qflash.daemonUrl": {
+          "type": "string",
+          "default": "http://localhost:4500",
+          "description": "URL of the NPZ daemon (including protocol and port)"
+        },
+        "qflash.adminToken": {
+          "type": "string",
+          "default": "changeme",
+          "description": "Admin token to call NPZ admin endpoints"
+        }
+      }
+    }
+  }
+}
