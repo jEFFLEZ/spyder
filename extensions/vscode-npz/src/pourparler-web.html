@@ -39,6 +39,8 @@
     .exports button{background:#28a745}
     .debug{margin-top:10px}
     .debug pre{background:#080808;padding:8px;border-radius:6px;color:#9ee}
+    .indexer{margin-top:12px;border-top:1px solid rgba(255,255,255,0.03);padding-top:12px}
+    .indexer input, .indexer select{width:100%;margin-top:6px;padding:6px;border-radius:6px;border:1px solid #222;background:#111;color:#ddd}
   </style>
 </head>
 <body>
@@ -57,6 +59,19 @@
       <div class="exports">
         <button id="exportSvg">Export SVG</button>
         <button id="exportPng">Export PNG</button>
+      </div>
+
+      <div class="indexer">
+        <strong>Rome index tag</strong>
+        <label for="filePath">File path (workspace relative)</label>
+        <input id="filePath" placeholder="src/rome/module/foo.ts" />
+        <label for="fileType">Type</label>
+        <select id="fileType"><option value="module">module</option><option value="component">component</option><option value="service">service</option></select>
+        <div style="display:flex;gap:8px;">
+          <button id="computeTag">Compute & Save tag</button>
+          <button id="copyTag">Copy tag</button>
+        </div>
+        <div class="meta">Tag: <span id="tagHex">—</span>  <small id="tagInfo"></small></div>
       </div>
 
       <div class="debug">
@@ -203,6 +218,20 @@
       vscode.postMessage({ type: 'npzClear' });
     }
 
+    function computeAndSendTag(){
+      const filePath = (document.getElementById('filePath') as HTMLInputElement).value || '';
+      const fileType = (document.getElementById('fileType') as HTMLSelectElement).value || 'module';
+      if(!filePath) return alert('Provide a workspace-relative file path');
+      const tag = compute24bitHash(fileType + '|' + filePath);
+      const hex = '0x'+toHex24(tag);
+      document.getElementById('tagHex').innerText = hex;
+      document.getElementById('tagInfo').innerText = `type=${fileType} path=${filePath}`;
+      if(vscode) vscode.postMessage({ type: 'npzIndexTag', payload: { path: filePath, type: fileType, tag: hex } });
+    }
+
+    document.getElementById('computeTag').addEventListener('click', computeAndSendTag);
+    document.getElementById('copyTag').addEventListener('click', ()=>{ const h = document.getElementById('tagHex').innerText; if(h && h!=='—') navigator.clipboard.writeText(h); });
+
     document.getElementById('encode').addEventListener('click', ()=>{
       const msg = document.getElementById('msg').value || '';
       const hash24 = compute24bitHash(msg);
@@ -246,6 +275,12 @@
         document.getElementById('dbg').innerText = 'Cleared: ' + JSON.stringify(msg.data);
       } else if(msg.type === 'exportSaved') {
         document.getElementById('dbg').innerText = 'Exported: ' + msg.path;
+      } else if(msg.type === 'npzIndexTagResult') {
+        if(msg.success) {
+          document.getElementById('dbg').innerText = 'Index tag saved: ' + JSON.stringify(msg.record, null, 2);
+        } else {
+          document.getElementById('dbg').innerText = 'Index tag save failed: ' + String(msg.error);
+        }
       }
     });
 

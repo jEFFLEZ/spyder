@@ -1,6 +1,6 @@
 {
   "name": "@funeste38/qflush",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "QFLUSH orchestrator",
   "bin": {
     "qflush": "dist/index.js"
@@ -22,7 +22,10 @@
   "scripts": {
     "prebuild": "node ./tools/generate-pourparler-css.js",
     "build": "tsc -p .",
-    "test": "ts-node ./src/tests/checksum.test.ts"
+    "test": "ts-node ./src/tests/checksum.test.ts",
+    "lint": "eslint . --ext .ts,.js --fix",
+    "lint:rome": "npm run build && node tools/rome-lint.js",
+    "lint:rome:fix": "npm run build && node tools/rome-lint.js --fix"
   },
   "keywords": [
     "funeste38",
@@ -57,6 +60,9 @@
     "@types/node": "^20.0.0",
     "@types/node-fetch": "^2.6.13",
     "@types/uuid": "^9.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.6.0",
+    "@typescript-eslint/parser": "^6.6.0",
+    "eslint": "^8.57.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
