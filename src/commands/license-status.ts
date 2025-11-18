@@ -1,0 +1,11 @@
+import license from '../utils/license';
+
+export default async function runLicenseStatus() {
+  const lic = license.readLicense();
+  if (!lic) {
+    console.log('No license found');
+    return 0;
+  }
+  console.log(JSON.stringify(lic, null, 2));
+  return 0;
+}
