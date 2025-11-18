@@ -1,7 +1,16 @@
 # @funeste38/qflash ⚡
 
 QFLASH is the orchestrator of the Funesterie ecosystem.
-Start, stop, purge, inspect, and synchronize modules.
+
+This repository includes a local daemon `qflash` which can verify Gumroad license keys locally.
+
+Local license activation
+
+- Start daemon: `npm run build && node dist/daemon/qflashd.js`
+- Activate: POST `http://localhost:4500/license/activate` with `{ "key": "..." }`
+- Status: GET `http://localhost:4500/license/status`
+
+For most use cases no public endpoint or webhook is required — the daemon verifies keys directly with Gumroad.
 
 ## Release
 
