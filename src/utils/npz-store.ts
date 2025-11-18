@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { createRecord as redisCreate, getRecord as redisGet, updateRecord as redisUpdate } from './npz-store-redis';
 
 const STORE_DIR = path.join(process.cwd(), '.qflash');
 const REQUEST_STORE = path.join(STORE_DIR, 'npz-requests.json');
@@ -11,46 +12,73 @@ type NpzRecord = {
   meta?: Record<string, any>;
 };
 
-let store: Record<string, NpzRecord> = {};
+let fileStore: Record<string, NpzRecord> = {};
 
 function ensureDir() {
   if (!fs.existsSync(STORE_DIR)) fs.mkdirSync(STORE_DIR, { recursive: true });
 }
 
-function load() {
+function loadFileStore() {
   try {
     if (fs.existsSync(REQUEST_STORE)) {
       const raw = fs.readFileSync(REQUEST_STORE, 'utf8');
-      store = JSON.parse(raw);
+      fileStore = JSON.parse(raw);
     }
-  } catch (e) {}
+  } catch (e) {
+    fileStore = {};
+  }
 }
 
-function persist() {
+function persistFileStore() {
   try {
     ensureDir();
-    fs.writeFileSync(REQUEST_STORE, JSON.stringify(store, null, 2), 'utf8');
+    fs.writeFileSync(REQUEST_STORE, JSON.stringify(fileStore, null, 2), 'utf8');
   } catch (e) {}
 }
 
-load();
+loadFileStore();
 
-export function createRequestRecord(id: string, meta?: Record<string, any>) {
+const USE_REDIS = Boolean(process.env.REDIS_URL);
+
+export async function createRequestRecord(idOrMeta?: string | Record<string, any>, maybeMeta?: Record<string, any>) {
+  if (USE_REDIS) {
+    // redis createRecord ignores provided id, returns generated id
+    const meta = typeof idOrMeta === 'string' ? maybeMeta : (idOrMeta as Record<string, any> | undefined);
+    const rec = await redisCreate(meta);
+    return rec;
+  }
+
+  // file mode: if id provided, use it
+  let id: string;
+  let meta: Record<string, any> | undefined;
+  if (typeof idOrMeta === 'string') {
+    id = idOrMeta;
+    meta = maybeMeta;
+  } else {
+    id = (idOrMeta && (idOrMeta as any).id) || (Math.random() + '_' + Date.now()).toString();
+    meta = (idOrMeta as Record<string, any>) || undefined;
+  }
   const rec: NpzRecord = { id, ts: Date.now(), meta };
-  store[id] = rec;
-  persist();
+  fileStore[id] = rec;
+  persistFileStore();
   return rec;
 }
 
-export function updateRequestRecord(id: string, patch: Partial<NpzRecord>) {
-  if (!store[id]) return null;
-  store[id] = { ...store[id], ...patch };
-  persist();
-  return store[id];
+export async function updateRequestRecord(id: string, patch: Partial<NpzRecord>) {
+  if (USE_REDIS) {
+    return await redisUpdate(id, patch as any);
+  }
+  if (!fileStore[id]) return null;
+  fileStore[id] = { ...fileStore[id], ...patch };
+  persistFileStore();
+  return fileStore[id];
 }
 
-export function getRequestRecord(id: string) {
-  return store[id] || null;
+export async function getRequestRecord(id: string) {
+  if (USE_REDIS) {
+    return await redisGet(id);
+  }
+  return fileStore[id] || null;
 }
 
 export default { createRequestRecord, updateRequestRecord, getRequestRecord };

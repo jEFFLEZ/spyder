@@ -1,9 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import npzRouter, { npzRoute } from './npz-router';
+import { npzRoute } from './npz-router';
 import npzStore from './npz-store';
 import npz from './npz';
 import logger from './logger';
+import client from 'prom-client';
+
+const requestDuration = new client.Histogram({
+  name: 'npz_request_duration_seconds',
+  help: 'Duration of NPZ handled requests',
+  labelNames: ['gate', 'lane'] as string[],
+});
 
 export type NpzMiddlewareOptions = {
   lanes?: any[];
@@ -17,27 +24,41 @@ export function npzMiddleware(opts: NpzMiddlewareOptions = {}) {
   const maxAge = opts.cookieMaxAge || 24 * 3600; // seconds
 
   return async function (req: Request, res: Response, next: NextFunction) {
+    const start = process.hrtime();
     try {
       // assign npz_id
       const npz_id = (req.headers['x-npz-id'] as string) || req.cookies?.['npz_id'] || uuidv4();
       res.cookie('npz_id', npz_id, { maxAge: maxAge * 1000, httpOnly: true });
-      npzStore.createRequestRecord(npz_id, { path: req.path, method: req.method });
+      await npzStore.createRequestRecord(npz_id, { path: req.path, method: req.method });
 
-      // determine lanes and host
       const fullUrl = req.protocol + '://' + req.get('host') + req.originalUrl;
 
-      // try NPZ router first
       const report = await npzRoute({ method: req.method, url: fullUrl, headers: req.headers as any, body: (req as any).body });
 
       if (report && (report.status || report.body)) {
-        // if lane preference updated, set cookie
-        const rec = npzStore.getRequestRecord(npz_id);
-        if (rec && rec.laneId !== undefined) {
-          res.cookie(cookieName, String(rec.laneId), { maxAge: maxAge * 1000 });
+        // update record with lane if stored via router
+        const rec = await npzStore.getRequestRecord(npz_id);
+        const lane = rec?.laneId;
+        if (lane !== undefined) {
+          res.cookie(cookieName, String(lane), { maxAge: maxAge * 1000 });
         }
-        // send response upstream body
+
+        // metrics
+        const diff = process.hrtime(start);
+        const duration = diff[0] + diff[1] / 1e9;
+        const gate = (report as any).gate || 'unknown';
+        requestDuration.labels(gate, String(lane || 'unknown')).observe(duration);
+
         if (report.status) res.status(report.status);
-        res.set(report.headers || {});
+        // set headers (careful with set-cookie)
+        if (report.headers) {
+          try {
+            for (const [k, v] of Object.entries(report.headers)) {
+              if (k.toLowerCase() === 'set-cookie') continue;
+              res.setHeader(k, v as any);
+            }
+          } catch (e) {}
+        }
         res.send(report.body || '');
         return;
       }
