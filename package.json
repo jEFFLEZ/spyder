@@ -21,7 +21,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepare": "npm run build",
-    "test": "node dist/tests/smartchain.test.js"
+    "test": "node dist/tests/smartchain.test.js",
+    "ci:integration": "npm run build && npm test && node dist/index.js start --verbose --dry-run"
   },
   "keywords": [
     "funeste38",
