@@ -1,0 +1,33 @@
+name: Publish to Visual Studio Marketplace
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-vs-marketplace:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate AZURE_PAT
+        run: |
+          if [ -z "${{ secrets.AZURE_PAT }}" ]; then echo "AZURE_PAT is missing"; exit 1; fi
+      - name: Install deps and build extension
+        run: |
+          cd extensions/vscode-npz
+          npm ci --no-audit --no-fund
+          npm run build || true
+      - name: Package VSIX
+        run: |
+          cd extensions/vscode-npz
+          npx vsce package
+      - name: Publish to Visual Studio Marketplace
+        env:
+          AZURE_PAT: ${{ secrets.AZURE_PAT }}
+        run: |
+          cd extensions/vscode-npz
+          npx vsce publish --pat $AZURE_PAT
