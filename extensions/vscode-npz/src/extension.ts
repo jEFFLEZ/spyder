@@ -22,14 +22,14 @@ export function activate(context: vscode.ExtensionContext) {
       html = `<html><body><pre>panel.html not found at ${htmlPath}</pre></body></html>`;
     }
 
+    panel.webview.html = html;
+
     const cfg = vscode.workspace.getConfiguration('npz');
     const daemonUrl = cfg.get<string>('daemonUrl') || 'http://localhost:4500';
-    const token = cfg.get<string>('adminToken') || 'changeme';
+    const token = cfg.get<string>('adminToken') || '';
 
-    html = html.replace(/http:\/\/localhost:4500/g, daemonUrl);
-    html = html.replace(/token=changeme/g, `token=${token}`);
-
-    panel.webview.html = html;
+    // Send config to webview securely via postMessage
+    panel.webview.postMessage({ type: 'config', daemonUrl, token });
   });
 
   context.subscriptions.push(disposable);

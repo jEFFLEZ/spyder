@@ -7,9 +7,13 @@
     <button id="refresh">Refresh</button>
     <button id="reset">Reset Scores</button>
     <script>
+      let DAEMON_URL = 'http://localhost:4500';
+      let ADMIN_TOKEN = 'changeme';
+
       async function load(){
         try {
-          const res = await fetch('http://localhost:4500/npz/scores?token=changeme');
+          const url = `${DAEMON_URL.replace(/\/$/, '')}/npz/scores?token=${encodeURIComponent(ADMIN_TOKEN)}`;
+          const res = await fetch(url);
           if (!res.ok) throw new Error('fetch failed ' + res.status);
           const data = await res.json();
           document.getElementById('content').innerText = JSON.stringify(data, null, 2);
@@ -17,9 +21,34 @@
           document.getElementById('content').innerText = 'Error: ' + String(e);
         }
       }
+
       document.getElementById('refresh').addEventListener('click', load);
-      document.getElementById('reset').addEventListener('click', async ()=>{ await fetch('http://localhost:4500/npz/scores/reset?token=changeme', { method: 'POST' }); load(); });
-      load();
+      document.getElementById('reset').addEventListener('click', async ()=>{
+        try {
+          const url = `${DAEMON_URL.replace(/\/$/, '')}/npz/scores/reset?token=${encodeURIComponent(ADMIN_TOKEN)}`;
+          await fetch(url, { method: 'POST' });
+          load();
+        } catch (e) {
+          document.getElementById('content').innerText = 'Error: ' + String(e);
+        }
+      });
+
+      // Listen for messages from the extension to receive config securely
+      window.addEventListener('message', event => {
+        const msg = event.data;
+        if (msg && msg.type === 'config') {
+          if (msg.daemonUrl) DAEMON_URL = msg.daemonUrl;
+          if (msg.token) ADMIN_TOKEN = msg.token;
+          load();
+        }
+      });
+
+      // Request initial config from extension (some VS Code hosts auto-provide it via postMessage)
+      // If none arrives, load() will use defaults.
+      setTimeout(() => {
+        // give extension a moment to post config
+        load();
+      }, 200);
     </script>
   </body>
 </html>
