@@ -2,8 +2,31 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
+const TRIAL_DAYS = 7;
+
+function isTrialExpired(context: vscode.ExtensionContext): boolean {
+  const started = context.globalState.get<number>('npz.trialStarted');
+  if (!started) return false; // start on first use
+  const now = Date.now();
+  return now - started > TRIAL_DAYS * 24 * 3600 * 1000;
+}
+
+function ensureTrialStarted(context: vscode.ExtensionContext) {
+  const started = context.globalState.get<number>('npz.trialStarted');
+  if (!started) context.globalState.update('npz.trialStarted', Date.now());
+}
+
 export function activate(context: vscode.ExtensionContext) {
+  ensureTrialStarted(context);
+
   const disposable = vscode.commands.registerCommand('npz.openScores', () => {
+    if (isTrialExpired(context)) {
+      vscode.window.showInformationMessage('NPZ trial expired. Click to purchase a license.', 'Purchase', 'Cancel').then((v) => {
+        if (v === 'Purchase') vscode.env.openExternal(vscode.Uri.parse('https://github.com/jEFFLEZ/qflash#purchase'));
+      });
+      return;
+    }
+
     const panel = vscode.window.createWebviewPanel(
       'npzScores',
       'NPZ Scores',
