@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { buildPipeline, executePipeline } from "./chain/smartChain";
 import { showHelp } from "./cli/help";
 import { runCompose } from "./commands/compose";
@@ -25,7 +24,7 @@ if (first === "doctor") {
 }
 if (first === "daemon") {
   // start qflushd in-process
-  void import("./daemon/qflushd").then((m) => {
+  void import("./daemon/qflushd").then(() => {
     // module starts itself and logs
   }).catch((err) => {
     console.error("failed to start daemon", err);

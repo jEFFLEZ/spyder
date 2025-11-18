@@ -4,6 +4,9 @@ import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
 
+// import Rome tag utilities
+import { makeRomeTagRecord, RomeIndex, normalizeRomePath } from '../../../src/rome/rome-tag';
+
 const TRIAL_DAYS = 14;
 
 function isTrialExpired(context: vscode.ExtensionContext): boolean {
@@ -83,19 +86,24 @@ function getJson(urlStr: string): Promise<any> {
   });
 }
 
-async function saveRomeIndexRecord(record: { path: string; type: string; tag: string }) {
+async function saveRomeIndexRecord(record: { path: string; type: string; tag?: string }) {
   try {
     const root = process.cwd();
     const dir = path.join(root, '.qflush');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const idxFile = path.join(dir, 'rome-index.json');
-    let idx: any = {};
+    let idx: RomeIndex = {};
     if (fs.existsSync(idxFile)) {
       try { idx = JSON.parse(fs.readFileSync(idxFile, 'utf8') || '{}'); } catch { idx = {}; }
     }
-    idx[record.path] = { type: record.type, tag: record.tag, savedAt: Date.now() };
+
+    // normalize path and build canonical record using shared module
+    const relPath = normalizeRomePath(record.path);
+    const rec = makeRomeTagRecord({ type: record.type, path: relPath });
+    idx[rec.path] = rec;
+
     fs.writeFileSync(idxFile, JSON.stringify(idx, null, 2), 'utf8');
-    return { success: true, record: idx[record.path] };
+    return { success: true, record: idx[rec.path] };
   } catch (e) {
     return { success: false, error: String(e) };
   }
