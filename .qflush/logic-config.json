@@ -1,0 +1,4 @@
+{
+  "allowedCommandSubstrings": ["npm", "node", "echo"],
+  "commandTimeoutMs": 15000
+}

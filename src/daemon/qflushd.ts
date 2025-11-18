@@ -60,9 +60,91 @@ const app = express();
 app.use(express.json());
 
 // load Rome index from .qflush/rome-index.json (if present)
-import { loadRomeIndexFromDisk, getCachedRomeIndex, startRomeIndexAutoRefresh } from '../rome/index-loader';
+import { loadRomeIndexFromDisk, getCachedRomeIndex, startRomeIndexAutoRefresh, onRomeIndexUpdated } from '../rome/index-loader';
+import { evaluateIndex } from '../rome/engine';
+import { loadLogicRules, evaluateAllRules, getRules } from '../rome/logic-loader';
+import { executeAction } from '../rome/executor';
+import { getEmitter, startIndexWatcher } from '../rome/events';
 
 startRomeIndexAutoRefresh(15 * 1000); // refresh every 15s
+
+// in-memory execution history
+const engineHistory: any[] = [];
+
+// Evaluate engine at startup and on refresh
+function computeEngineActions() {
+  try {
+    const idx = getCachedRomeIndex();
+    const actions = evaluateIndex(idx);
+    console.log('QFLUSH Engine computed actions:');
+    actions.forEach((a) => console.log(JSON.stringify(a)));
+
+    // load logic rules and evaluate simple matches
+    const rules = loadLogicRules();
+    console.log('Loaded logic rules:', rules.map(r=>r.name));
+    for (const p of Object.values(idx)) {
+      const matches = evaluateAllRules(idx, []);
+      if (matches.length) console.log('Logic matches', matches);
+    }
+
+    return actions;
+  } catch (e) {
+    console.warn('engine compute failed', String(e));
+    return [];
+  }
+}
+
+// manual API to run engine evaluation and execute matching actions
+app.post('/npz/engine/run', async (_req: any, res: any) => {
+  try {
+    const idx = getCachedRomeIndex();
+    const payload = _req.body || {};
+    const changed = payload.changedPaths || Object.keys(idx);
+    const matches = evaluateAllRules(idx, changed);
+    const results: any[] = [];
+    for (const m of matches) {
+      for (const act of m.actions) {
+        const r = await executeAction(act, { path: m.path });
+        results.push({ path: m.path, action: act, result: r });
+        engineHistory.push({ t: Date.now(), path: m.path, action: act, result: r });
+      }
+    }
+    return res.json({ success: true, count: results.length, results });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: String(e) });
+  }
+});
+
+app.get('/npz/engine/history', (_req: any, res: any) => {
+  return res.json({ success: true, count: engineHistory.length, items: engineHistory.slice(-50) });
+});
+
+// initial compute
+computeEngineActions();
+
+// listen to rome.index.updated events
+onRomeIndexUpdated(async (payload) => {
+  try {
+    const { oldIndex, newIndex, changedPaths } = payload;
+    console.log('rome.index.updated event, changedPaths=', changedPaths);
+    loadLogicRules();
+    const idx = getCachedRomeIndex();
+    const matches = evaluateAllRules(idx, changedPaths || []);
+    if (matches && matches.length) {
+      for (const m of matches) {
+        for (const act of m.actions) {
+          console.log('Executing action for', m.path, act);
+          const res = await executeAction(act, { path: m.path });
+          console.log('action result', res);
+          engineHistory.push({ t: Date.now(), path: m.path, action: act, result: res });
+        }
+      }
+    }
+  } catch (e) { console.warn('onRomeIndexUpdated handler failed', String(e)); }
+});
+
+// also start index watcher so file system changes are picked up
+startIndexWatcher(3000);
 
 // --- One-time checksum cache ---
 // If Redis is configured, use Redis keys with TTL and a sorted set index for listing. Otherwise fallback to in-memory Map.

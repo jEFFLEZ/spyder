@@ -35,3 +35,23 @@ export function parseLogicFile(filePath: string): LogicRule[] {
   }
   return rules;
 }
+
+// simple evaluator helper to check basic expressions
+export function evaluateConditionExpr(expr: string, ctx: any): boolean {
+  // supports: and / or (||) , equality '==' and parentheses
+  if (!expr || expr.trim() === '') return false;
+  // replace ctx tokens like file.type with quoted values
+  let e = expr.replace(/file\.type/g, `"${ctx.file?.type||''}"`);
+  e = e.replace(/file\.tagChanged/g, ctx.file?.tagChanged ? 'true' : 'false');
+  e = e.replace(/rome\.index\.updated/g, ctx.romeIndexUpdated ? 'true' : 'false');
+  // replace == with === for JS eval
+  e = e.replace(/==/g, '===');
+  // replace 'and' with '&&' and 'or'/'||' with '||'
+  e = e.replace(/\band\b/gi, '&&').replace(/\bor\b/gi, '||');
+  try {
+    // eslint-disable-next-line no-eval
+    return !!eval(e);
+  } catch (e) {
+    return false;
+  }
+}
