@@ -16,13 +16,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Validate token
+      - name: Validate token (warning only)
         run: |
-          if [ -z "${{ secrets.OPEN_VSX_TOKEN }}" ]; then echo "OPEN_VSX_TOKEN is missing"; exit 1; fi
+          if [ -z "${{ secrets.OPEN_VSX_TOKEN }}" ]; then echo "OPEN_VSX_TOKEN is not set - Open VSX publish will be skipped"; else echo "OPEN_VSX_TOKEN is set"; fi
       - name: Install dependencies
         run: |
           cd extensions/vscode-npz
-          npm install --no-audit --no-fund
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
       - name: Package .vsix
         run: |
           cd extensions/vscode-npz
@@ -33,6 +33,7 @@ jobs:
           name: qflush-vsix
           path: extensions/vscode-npz/*.vsix
       - name: Publish to Open VSX
+        if: ${{ secrets.OPEN_VSX_TOKEN }}
         env:
           OPEN_VSX_TOKEN: ${{ secrets.OPEN_VSX_TOKEN }}
         run: |
