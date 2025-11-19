@@ -72,39 +72,22 @@ import { executeAction } from '../rome/executor';
 import { getEmitter, startIndexWatcher } from '../rome/events';
 import { initCopilotBridge, emitEngineState, emitRuleEvent, emitDiagnostic, getConfig as getCopilotConfig } from '../rome/copilot-bridge';
 
-startRomeIndexAutoRefresh(15 * 1000); // refresh every 15s
-
-// in-memory execution history
-const engineHistory: any[] = [];
-// Copilot message history and SSE clients
-const copilotHistory: any[] = [];
-const copilotClients: any[] = [];
-
 // initialize copilot bridge
-initCopilotBridge();
+function initBridgeIfNotTest() {
+  try {
+    if (!process.env.VITEST) {
+      initCopilotBridge();
+    }
+  } catch (e) {
+    // ignore
+  }
+}
 
 // Evaluate engine at startup and on refresh
-function computeEngineActions() {
+function computeEngineActionsSafe() {
   try {
-    const idx = getCachedRomeIndex();
-    const actions = evaluateIndex(idx);
-    console.log('QFLUSH Engine computed actions:');
-    actions.forEach((a) => console.log(JSON.stringify(a)));
-
-    // emit engine state to copilot bridge if enabled
-    try {
-      emitEngineState({ rules: getRules(), indexSummary: { count: Object.keys(idx).length, byType: {} }, runningServices: [] });
-    } catch (e) {}
-
-    // load logic rules and evaluate simple matches
-    const rules = loadLogicRules();
-    console.log('Loaded logic rules:', rules.map(r=>r.name));
-    for (const p of Object.values(idx)) {
-      const matches = evaluateAllRules(idx, []);
-      if (matches.length) console.log('Logic matches', matches);
-    }
-
-    return actions;
+    if (process.env.VITEST) return [];
+    return computeEngineActions();
   } catch (e) {
     console.warn('engine compute failed', String(e));
     try { emitDiagnostic({ severity: 'error', source: 'engine', message: String(e) }); } catch (err) {}
@@ -112,73 +95,29 @@ function computeEngineActions() {
   }
 }
 
-// Copilot endpoints (protected)
-app.post('/copilot/message', requireQflushToken, (req: any, res: any) => {
-  try {
-    const body = req.body || {};
-    const msg = { id: Date.now(), receivedAt: new Date().toISOString(), message: body.message || '', meta: body.meta || {} };
-    copilotHistory.push(msg);
-    // notify SSE clients
-    for (const cl of copilotClients) {
-      try { cl.write(`data: ${JSON.stringify(msg)}\n\n`); } catch (e) {}
-    }
-    return res.json({ success: true, id: msg.id });
-  } catch (e) {
-    return res.status(500).json({ success: false, error: String(e) });
-  }
-});
+// start Rome index auto refresh only when not running under tests
+if (!process.env.VITEST) {
+  startRomeIndexAutoRefresh(15 * 1000); // refresh every 15s
+}
 
-app.get('/copilot/stream', requireQflushToken, (req: any, res: any) => {
-  // SSE
-  res.writeHead(200, {
-    Connection: 'keep-alive',
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache'
-  });
-  res.write('\n');
-  copilotClients.push(res);
-  req.on('close', () => {
-    const idx = copilotClients.indexOf(res);
-    if (idx !== -1) copilotClients.splice(idx, 1);
-  });
-});
+// in-memory execution history
+const engineHistory: any[] = [];
+// Copilot message history and SSE clients
+const copilotHistory: any[] = [];
+const copilotClients: any[] = [];
 
-app.get('/copilot/history', requireQflushToken, (_req: any, res: any) => {
-  return res.json({ success: true, count: copilotHistory.length, items: copilotHistory.slice(-100) });
-});
+// initialize copilot bridge (guarded)
+initBridgeIfNotTest();
 
-// manual API to run engine evaluation and execute matching actions (protected)
-app.post('/npz/engine/run', requireQflushToken, async (_req: any, res: any) => {
-  try {
-    const idx = getCachedRomeIndex();
-    const payload = _req.body || {};
-    const changed = payload.changedPaths || Object.keys(idx);
-    const matches = evaluateAllRules(idx, changed);
-    const results: any[] = [];
-    for (const m of matches) {
-      for (const act of m.actions) {
-        const r = await executeAction(act, { path: m.path });
-        results.push({ path: m.path, action: act, result: r });
-        engineHistory.push({ t: Date.now(), path: m.path, action: act, result: r });
-        try { emitRuleEvent({ rule: 'unknown', path: m.path, matchContext: {}, actions: m.actions, result: r }); } catch (e) {}
-      }
-    }
-    return res.json({ success: true, count: results.length, results });
-  } catch (e) {
-    return res.status(500).json({ success: false, error: String(e) });
-  }
-});
-
-app.get('/npz/engine/history', requireQflushToken, (_req: any, res: any) => {
-  return res.json({ success: true, count: engineHistory.length, items: engineHistory.slice(-50) });
-});
-
-// initial compute
-computeEngineActions();
+// Evaluate engine at startup and on refresh (guarded)
+if (!process.env.VITEST) {
+  computeEngineActionsSafe();
+}
 
 // listen to rome.index.updated events
 onRomeIndexUpdated(async (payload) => {
   try {
+    if (process.env.VITEST) return;
     const { oldIndex, newIndex, changedPaths } = payload;
     console.log('rome.index.updated event, changedPaths=', changedPaths);
     loadLogicRules();
@@ -198,8 +137,10 @@ onRomeIndexUpdated(async (payload) => {
   } catch (e) { console.warn('onRomeIndexUpdated handler failed', String(e)); }
 });
 
-// also start index watcher so file system changes are picked up
-startIndexWatcher(3000);
+// also start index watcher so file system changes are picked up (guarded)
+if (!process.env.VITEST) {
+  startIndexWatcher(3000);
+}
 
 // --- One-time checksum cache ---
 // If Redis is configured, use Redis keys with TTL and a sorted set index for listing. Otherwise fallback to in-memory Map.
