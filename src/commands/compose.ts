@@ -59,7 +59,7 @@ export async function runCompose(argv: string[]) {
     if (!name) { logger.info('Specify module name'); return; }
     const logFile = `${process.cwd()}/.qflush/logs/${name}.log`;
     if (!fs.existsSync(logFile)) { logger.info('No log file found'); return; }
-    const t = new Tail(logFile, { fromBeginning: false, retry: true });
+    const t = new Tail(logFile, { fromBeginning: false });
     t.on('line', (data: any) => console.log(data));
     t.on('error', (err: any) => console.error(err));
     return;
