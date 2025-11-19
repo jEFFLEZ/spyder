@@ -29,7 +29,9 @@ stages:
         displayName: Publish to Azure DevOps Marketplace
         dependsOn: build
         pool:
-          vmImage: 'ubuntu-latest'
+          # Use a self-hosted agent pool name provided via the pipeline variable AGENT_POOL.
+          # Example: set AGENT_POOL=self-hosted in Pipeline variables after creating an agent pool.
+          name: '$(AGENT_POOL)'
         steps:
           - checkout: self
           - task: NodeTool@0
