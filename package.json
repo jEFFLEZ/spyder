@@ -22,7 +22,7 @@
   "scripts": {
     "prebuild": "node ./tools/generate-pourparler-css.js",
     "build": "tsc -p .",
-    "test": "vitest --run --setup ./vitest.setup.js",
+    "test": "vitest --run",
     "lint": "eslint . --ext .ts,.js --fix -c .eslintrc.cjs",
     "lint:rome": "npm run build && node tools/rome-lint.js",
     "lint:rome:fix": "npm run build && node tools/rome-lint.js --fix"
