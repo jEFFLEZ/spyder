@@ -60,3 +60,15 @@ export function evaluateIndex(index: RomeIndex): EngineAction[] {
 
   return actions;
 }
+
+// Safe wrapper used by daemon to compute actions without throwing
+export function computeEngineActionsSafe(index?: RomeIndex): EngineAction[] {
+  try {
+    const idx = index || {};
+    return evaluateIndex(idx);
+  } catch (e) {
+    // don't throw in daemon context; return empty actions and let caller log
+    try { console.warn('computeEngineActionsSafe failed', String(e)); } catch {}
+    return [];
+  }
+}

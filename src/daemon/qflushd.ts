@@ -66,7 +66,7 @@ import { setReloadHandler } from './daemon-control';
 
 // load Rome index from .qflush/rome-index.json (if present)
 import { loadRomeIndexFromDisk, getCachedRomeIndex, startRomeIndexAutoRefresh, onRomeIndexUpdated } from '../rome/index-loader';
-import { evaluateIndex } from '../rome/engine';
+import { evaluateIndex, computeEngineActionsSafe } from '../rome/engine';
 import { loadLogicRules, evaluateAllRules, getRules } from '../rome/logic-loader';
 import { executeAction } from '../rome/executor';
 import { getEmitter, startIndexWatcher } from '../rome/events';
@@ -80,18 +80,6 @@ function initBridgeIfNotTest() {
     }
   } catch (e) {
     // ignore
-  }
-}
-
-// Evaluate engine at startup and on refresh
-function computeEngineActionsSafe() {
-  try {
-    if (process.env.VITEST) return [];
-    return computeEngineActions();
-  } catch (e) {
-    console.warn('engine compute failed', String(e));
-    try { emitDiagnostic({ severity: 'error', source: 'engine', message: String(e) }); } catch (err) {}
-    return [];
   }
 }
 
@@ -111,6 +99,7 @@ initBridgeIfNotTest();
 
 // Evaluate engine at startup and on refresh (guarded)
 if (!process.env.VITEST) {
+  // call the safe compute function from engine
   computeEngineActionsSafe();
 }
 
