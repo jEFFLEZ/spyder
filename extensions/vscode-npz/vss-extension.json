@@ -2,8 +2,8 @@
   "manifestVersion": 1,
   "id": "qflush",
   "publisher": "funesterie",
-  "version": "1.0.0",
-  "name": "QFlash Extension",
+  "version": "1.0.1",
+  "name": "QFlush Extension",
   "description": "Visualize NPZ engine scores and manage lanes from VS Code.",
   "targets": [
     { "id": "Microsoft.VisualStudio.Services" }

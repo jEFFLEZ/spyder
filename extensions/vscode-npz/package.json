@@ -1,8 +1,8 @@
 {
   "name": "qflush",
-  "displayName": "QFlash Extension",
+  "displayName": "QFlush Extension",
   "publisher": "funesterie",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "engines": {
     "vscode": "^1.106.0"
   },
@@ -32,16 +32,16 @@
     "commands": [
       {
         "command": "qflush.openPanel",
-        "title": "QFlash: Open Panel"
+        "title": "QFlush: Open Panel"
       },
       {
         "command": "qflush.showLicenseStatus",
-        "title": "QFlash: Show License Status"
+        "title": "QFlush: Show License Status"
       }
     ],
     "configuration": {
       "type": "object",
-      "title": "QFlash",
+      "title": "QFlush",
       "properties": {
         "qflash.daemonUrl": {
           "type": "string",
