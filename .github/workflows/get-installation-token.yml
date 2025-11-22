@@ -20,6 +20,37 @@ jobs:
       - name: Install @octokit/auth-app
         run: |
           npm install @octokit/auth-app --no-audit --no-fund
+      - name: Normalize private key on runner
+        env:
+          PRIVATE_KEY_PEM: ${{ secrets.PRIVATE_KEY_PEM }}
+        run: |
+          set -euo pipefail
+          echo "Writing private key to disk"
+          # ensure newlines are preserved
+          printf '%s' "$PRIVATE_KEY_PEM" > private.key
+          # Trim potential surrounding quotes
+          sed -i "1s/^['\"]//;\$s/['\"]$//" private.key || true
+
+          echo "Detecting key format"
+          if grep -q "BEGIN OPENSSH PRIVATE KEY" private.key; then
+            echo "OpenSSH key detected — attempting conversion to PEM via ssh-keygen"
+            # convert OpenSSH private key to PEM (unencrypted)
+            ssh-keygen -p -N "" -m PEM -f private.key -q || true
+          fi
+
+          if grep -q "ENCRYPTED" private.key || grep -q "Proc-Type: 4,ENCRYPTED" private.key; then
+            echo "ERROR: provided private key appears to be encrypted. Provide an unencrypted PEM or an OpenSSH private key that can be converted."
+            exit 1
+          fi
+
+          echo "Normalized key (head):"
+          sed -n '1,5p' private.key || true
+          echo "----"
+          # export normalized key as env var for subsequent step
+          echo "GITHUB_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
+          cat private.key >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Debug installed packages
         run: |
           echo "node version: $(node -v)";
@@ -29,17 +60,16 @@ jobs:
           echo "npm ls @octokit/auth-app:'";
           npm ls @octokit/auth-app || true;
           node -e "try { console.log('require.resolve.paths:', require.resolve.paths('@octokit/auth-app')); } catch(e){ console.error('resolve.paths failed', e && e.message); process.exit(0);}"
+
       - name: Obtain installation token
         id: get_token
         env:
           APP_ID: ${{ secrets.APP_ID }}
           INSTALLATION_ID: ${{ secrets.INSTALLATION_ID }}
-          PRIVATE_KEY_PEM: ${{ secrets.PRIVATE_KEY_PEM }}
+          GITHUB_APP_ID: ${{ secrets.APP_ID }}
+          GITHUB_INSTALLATION_ID: ${{ secrets.INSTALLATION_ID }}
+          GITHUB_PRIVATE_KEY: ${{ env.GITHUB_PRIVATE_KEY }}
         run: |
-          # export expected env var names for helper
-          export GITHUB_APP_ID="$APP_ID"
-          export GITHUB_INSTALLATION_ID="$INSTALLATION_ID"
-          export GITHUB_PRIVATE_KEY="$PRIVATE_KEY_PEM"
           # run helper to obtain short-lived installation token
           node tools/get-installation-token.js > token.txt
           # mask token in logs
