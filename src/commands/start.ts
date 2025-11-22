@@ -13,6 +13,7 @@ import npz from "../utils/npz";
 import { resolveMerged } from "../supervisor/merged-resolver";
 import * as fs from 'fs';
 import { spawnSync } from 'child_process';
+import { startService } from '../services';
 
 export async function runStart(opts?: qflushOptions) {
   logger.info("qflush: starting modules...");
@@ -189,6 +190,18 @@ export async function runStart(opts?: qflushOptions) {
 
   for (const mod of services) {
     const promise = (async () => {
+      // If embed mode is enabled, use startService
+      const embed = process.env.QFLUSH_EMBED_SERVICES === '1';
+      if (embed) {
+        try {
+          await startService(mod, { flags });
+          return;
+        } catch (e) {
+          logger.warn(`embedded start failed for ${mod}: ${e}`);
+          return;
+        }
+      }
+
       // Use enhanced master flow which handles missing local bins and robust spawn
       const p = (opts?.modulePaths && opts.modulePaths[mod]) || paths[mod];
       const pkg = SERVICE_MAP[mod] && SERVICE_MAP[mod].pkg;
