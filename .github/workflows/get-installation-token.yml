@@ -61,13 +61,27 @@ jobs:
           echo "::add-mask::$(cat token.txt)"
           echo "token=$(cat token.txt)" >> $GITHUB_OUTPUT
 
+      - name: Use installation token (list installation repositories)
+        if: success()
+        env:
+          INSTALL_TOKEN: ${{ steps.get_token.outputs.token }}
+        run: |
+          set -euo pipefail
+          # mask token in logs
+          echo "::add-mask::$INSTALL_TOKEN"
+          echo "Calling GitHub API with installation token..."
+          curl -s -H "Authorization: Bearer $INSTALL_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/installation/repositories > installation-repos.json || true
+          echo "Wrote installation-repos.json (masked token)."
+
       - name: Upload token artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: installation-token
-          path: token.txt
+          path: |
+            token.txt
+            installation-repos.json
 
       - name: Show success
         run: |
-          echo "Installation token obtained and stored as artifact (masked)."
+          echo "Installation token obtained, API result and token uploaded as artifact (masked)."
