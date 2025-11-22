@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // tools/get-installation-token.js
-// Usage: set env vars GITHUB_APP_ID, GITHUB_INSTALLATION_ID, GITHUB_PRIVATE_KEY (PEM) then run:
+// Usage: set env vars GITHUB_APP_ID, GITHUB_INSTALLATION_ID, and either GITHUB_PRIVATE_KEY (PEM) or GITHUB_PRIVATE_KEY_FILE (path) then run:
 //   node tools/get-installation-token.js
 // Requires: npm install @octokit/auth-app
+
+const fs = require('fs');
 
 async function loadCreateAppAuth() {
   try {
@@ -18,8 +20,18 @@ const appId = process.env.GITHUB_APP_ID;
 const installationId = process.env.GITHUB_INSTALLATION_ID;
 let privateKey = process.env.GITHUB_PRIVATE_KEY; // PEM contents, keep newlines
 
+// Fallback: read from file if provided
+if (!privateKey && process.env.GITHUB_PRIVATE_KEY_FILE) {
+  try {
+    privateKey = fs.readFileSync(process.env.GITHUB_PRIVATE_KEY_FILE, 'utf8');
+  } catch (e) {
+    console.error('Failed to read private key file:', e && e.message ? e.message : String(e));
+    process.exit(1);
+  }
+}
+
 if (!appId || !installationId || !privateKey) {
-  console.error('Missing required env vars. Please set GITHUB_APP_ID, GITHUB_INSTALLATION_ID, and GITHUB_PRIVATE_KEY');
+  console.error('Missing required env vars. Please set GITHUB_APP_ID, GITHUB_INSTALLATION_ID, and GITHUB_PRIVATE_KEY or GITHUB_PRIVATE_KEY_FILE');
   process.exit(1);
 }
 
