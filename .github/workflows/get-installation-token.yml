@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   get-token:
-    # Use a self-hosted Windows runner that has D:\keys\private.pem available
+    # Run on a self-hosted Windows runner that has D:\keys\private.pem
     runs-on: [self-hosted, windows]
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +31,6 @@ jobs:
           GITHUB_INSTALLATION_ID: ${{ secrets.INSTALLATION_ID }}
         shell: pwsh
         run: |
-          # On the self-hosted Windows runner the key file is expected at D:\keys\private.pem
           Write-Host "Using private key file: $env:GITHUB_PRIVATE_KEY_FILE"
           node tools/get-installation-token.js > token.txt
           # mask token in logs and set step output
