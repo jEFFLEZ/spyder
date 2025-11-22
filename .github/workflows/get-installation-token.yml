@@ -31,6 +31,8 @@ jobs:
             echo "ERROR: provided private key appears to be encrypted. Provide an unencrypted PEM or an OpenSSH private key that can be converted."
             exit 1
           fi
+          # export path for next steps
+          echo "GITHUB_PRIVATE_KEY_FILE=$(pwd)/private.key" >> $GITHUB_ENV
       - name: Debug key head
         run: |
           echo "key head:"; sed -n '1,5p' private.key || true
@@ -39,10 +41,10 @@ jobs:
         env:
           APP_ID: ${{ secrets.APP_ID }}
           INSTALLATION_ID: ${{ secrets.INSTALLATION_ID }}
+          GITHUB_PRIVATE_KEY_FILE: ${{ env.GITHUB_PRIVATE_KEY_FILE }}
+          GITHUB_APP_ID: ${{ secrets.APP_ID }}
+          GITHUB_INSTALLATION_ID: ${{ secrets.INSTALLATION_ID }}
         run: |
-          export GITHUB_APP_ID="$APP_ID"
-          export GITHUB_INSTALLATION_ID="$INSTALLATION_ID"
-          export GITHUB_PRIVATE_KEY_FILE="$(pwd)/private.key"
           node tools/get-installation-token.js > token.txt
           echo "::add-mask::$(cat token.txt)"
           echo "token=$(cat token.txt)" >> $GITHUB_OUTPUT
