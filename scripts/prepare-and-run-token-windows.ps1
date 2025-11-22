@@ -31,7 +31,7 @@ $dest = Join-Path $work 'private-unencrypted.pem'
 Copy-Item -Path $KeyPath -Destination $dest -Force
 
 # Detect header
-$head = (Get-Content -Raw $dest) -split "\r?\n" | Select-Object -First 2 -Join '`n'
+$head = ((Get-Content -Raw $dest) -split "\r?\n" | Select-Object -First 2) -join "`n"
 Write-Host "Key header: $head"
 
 # If OPENSSH header, try conversion using ssh-keygen
@@ -79,10 +79,44 @@ if ($LASTEXITCODE -ne 0) { Write-ErrAndExit "Failed to trigger workflow" }
 
 # List latest runs and pick one for the workflow
 Start-Sleep -Seconds 3
-$runs = gh run list --workflow="get-installation-token.yml" --repo $Repo --limit 5 --json id,status,conclusion,createdAt --jq '.[] | {id,status,conclusion,createdAt}' 2>$null
-Write-Host $runs
+# get most recent run id (databaseId)
+$runId = gh run list --workflow="get-installation-token.yml" --repo $Repo --limit 1 --json databaseId --jq '.[0].databaseId' 2>$null
+if (-not $runId) { Write-ErrAndExit "Failed to get run id" }
+Write-Host "Triggered run id: $runId"
 
-Write-Host "Use 'gh run watch' or 'gh run view <id> --log' to monitor the run."
-Write-Host "When run succeeds, download the artifact 'installation-token' via 'gh run download <run-id> --repo $Repo --name installation-token'"
+# Poll run status until completed or timeout
+$timeoutMinutes = 5
+$waitSeconds = 5
+$elapsed = 0
+$maxSeconds = $timeoutMinutes * 60
+while ($elapsed -lt $maxSeconds) {
+  $status = gh run view $runId --repo $Repo --json status,conclusion --jq '.status' 2>$null
+  if ($status -eq 'completed') { break }
+  Start-Sleep -Seconds $waitSeconds
+  $elapsed += $waitSeconds
+}
+
+$status = gh run view $runId --repo $Repo --json status,conclusion --jq '.status' 2>$null
+$conclusion = gh run view $runId --repo $Repo --json status,conclusion --jq '.conclusion' 2>$null
+Write-Host "Run status: $status conclusion: $conclusion"
+
+if ($status -ne 'completed') { Write-ErrAndExit "Run did not complete in time (timeout $timeoutMinutes minutes)" }
+if ($conclusion -ne 'success') { Write-ErrAndExit "Run completed but not successful: $conclusion" }
+
+# Download artifact to D:\keys
+$destDir = 'D:\keys'
+if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir | Out-Null }
+Write-Host "Downloading artifact installation-token to $destDir"
+gh run download $runId --repo $Repo --name installation-token --dir $destDir
+if ($LASTEXITCODE -ne 0) { Write-ErrAndExit "Failed to download artifact" }
+
+# artifact downloaded into $destDir\installation-token\token.txt
+$artifactTokenPath = Join-Path $destDir 'installation-token\token.txt'
+if (-not (Test-Path $artifactTokenPath)) {
+  Write-ErrAndExit "Token file not found at $artifactTokenPath"
+}
+# copy token to D:\keys\token.txt for convenience
+Copy-Item -Path $artifactTokenPath -Destination (Join-Path $destDir 'token.txt') -Force
+Write-Host "Token saved to $destDir\token.txt"
 
 Write-Host "Done."
