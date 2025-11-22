@@ -30,7 +30,7 @@ jobs:
           set -euo pipefail
           printf '%s' "$PRIVATE_KEY_PEM" > private.pem
           # trim surrounding quotes if any
-          sed -i "1s/^['\"]//;$s/['\"]$//" private.pem || true
+          sed -i "1s/^['\"]//;\$s/['\"]$//" private.pem || true
           echo "Private key head:"; sed -n '1,5p' private.pem || true
 
           # If OpenSSH format, convert to PEM
