@@ -89,7 +89,7 @@ function persistSafeMode(obj: any) {
     const p = join(dir, 'safe-modes.json');
     fs.writeFileSync(p, JSON.stringify(obj, null, 2), 'utf8');
   } catch (e) {
-    logger.warn('failed to persist safe-modes', String(e));
+    logger.warn(`failed to persist safe-modes: ${String(e)}`);
   }
 }
 
