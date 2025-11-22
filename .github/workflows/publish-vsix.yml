@@ -1,6 +1,7 @@
 name: Publish VSIX (placeholder)
 
 on:
+  workflow_dispatch: {}
   push:
     branches:
       - vsix-on-main
