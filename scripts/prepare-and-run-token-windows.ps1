@@ -119,11 +119,17 @@ if (Test-Path $rootTokenPath) {
   Write-Host "Removing existing token file $rootTokenPath to allow artifact extraction"
   Remove-Item -Force $rootTokenPath
 }
+# remove existing installation-repos.json to avoid gh extraction error
+$rootReposPath = Join-Path $destDir 'installation-repos.json'
+if (Test-Path $rootReposPath) {
+  Write-Host "Removing existing API result file $rootReposPath to allow artifact extraction"
+  Remove-Item -Force $rootReposPath
+}
 
 gh run download $runId --repo $Repo --name installation-token --dir $destDir
 if ($LASTEXITCODE -ne 0) { Write-ErrAndExit "Failed to download artifact" }
 
-# artifact may be extracted into $destDir\installation-token\token.txt or token may already exist at $destDir\token.txt
+# artifact may be extracted into $destDir\\installation-token\\token.txt or token may already exist at $destDir\\token.txt
 $artifactTokenPath = Join-Path $extractedDir 'token.txt'
 $rootTokenPath = Join-Path $destDir 'token.txt'
 if (Test-Path $artifactTokenPath) {
@@ -135,7 +141,7 @@ if (Test-Path $artifactTokenPath) {
   Write-ErrAndExit "Token file not found at $artifactTokenPath or $rootTokenPath"
 }
 
-# also copy installation-repos.json to D:\keys if present (either in extractedDir or root)
+# also copy installation-repos.json to D:\\keys if present (either in extractedDir or root)
 $artifactReposPath = Join-Path $extractedDir 'installation-repos.json'
 $rootReposPath = Join-Path $destDir 'installation-repos.json'
 if (Test-Path $artifactReposPath) {

@@ -5,7 +5,8 @@ export default defineConfig({
     include: [
       'src/tests/legacy-runner.spec.ts',
       'src/**/__tests__/**/*.test.ts',
-      'extensions/**/src/**/*.test.ts'
+      'extensions/**/src/**/*.test.ts',
+      'src/tests/**/*.test.ts'
     ],
     exclude: ['**/out/**', '**/dist/**', 'node_modules/**'],
     setupFiles: ['./vitest.setup.js'],

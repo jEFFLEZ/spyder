@@ -186,7 +186,13 @@ export async function jokerWipe() {
   // persist mode
   persistSafeMode({ mode: 'joker', ts: Date.now() });
 
-  // exit process shortly
+  // exit process shortly unless running under tests or explicit test mode
+  const isTest = process.env.VITEST === 'true' || process.env.QFLUSH_TEST_MODE === '1';
+  if (isTest) {
+    logger.warn('[JOKER] Test mode detected — skipping process.exit');
+    return;
+  }
+
   setTimeout(() => {
     logger.warn('[JOKER] Exiting process (forced).');
     try { process.exit(137); } catch { /* ignore */ }

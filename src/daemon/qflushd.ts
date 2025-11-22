@@ -296,7 +296,34 @@ app.get('/npz/rome-links/stream', (req: any, res: any) => {
 });
 
 // remove duplicated checksum block at end
-// Ensure this block appears before startServer and 404 handlers
+// NPZ control endpoints for BAT modes (protected)
+app.post('/npz/sleep', requireQflushToken, async (_req: any, res: any) => {
+  try {
+    enterSleepMode();
+    return res.json({ success: true, mode: 'sleep' });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: String(e) });
+  }
+});
+
+app.post('/npz/wake', requireQflushToken, async (_req: any, res: any) => {
+  try {
+    exitSleepMode();
+    return res.json({ success: true, mode: 'normal' });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: String(e) });
+  }
+});
+
+app.post('/npz/joker-wipe', requireQflushToken, async (_req: any, res: any) => {
+  try {
+    // jokerWipe will attempt cleanup and then exit the process (skipped in test)
+    jokerWipe();
+    return res.json({ success: true, mode: 'joker' });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: String(e) });
+  }
+});
 
 // fallthrough 404 handler (JSON)
 app.use((req: any, res: any) => {
@@ -413,32 +440,3 @@ __setReloadHandler(async () => {
 if (require.main === module) {
   startServer();
 }
-
-// NPZ control endpoints for BAT modes (protected)
-app.post('/npz/sleep', requireQflushToken, async (_req: any, res: any) => {
-  try {
-    enterSleepMode();
-    return res.json({ success: true, mode: 'sleep' });
-  } catch (e) {
-    return res.status(500).json({ success: false, error: String(e) });
-  }
-});
-
-app.post('/npz/wake', requireQflushToken, async (_req: any, res: any) => {
-  try {
-    exitSleepMode();
-    return res.json({ success: true, mode: 'normal' });
-  } catch (e) {
-    return res.status(500).json({ success: false, error: String(e) });
-  }
-});
-
-app.post('/npz/joker-wipe', requireQflushToken, async (_req: any, res: any) => {
-  try {
-    // jokerWipe will attempt cleanup and then exit the process
-    jokerWipe();
-    return res.json({ success: true, mode: 'joker' });
-  } catch (e) {
-    return res.status(500).json({ success: false, error: String(e) });
-  }
-});
