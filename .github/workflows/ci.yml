@@ -65,11 +65,22 @@ jobs:
       - name: Start Cortex bus (background)
         if: env.QFLUSH_USE_CORTEX == '1'
         run: |
+          # Start Cortex bus from built dist if present. If not present, attempt to build then retry.
           if [ -f dist/cortex/bus.js ]; then
             nohup node ./dist/cortex/bus.js > cortex.log 2>&1 & echo $! > cortex.pid
             echo "CORTEX started, pid=$(cat cortex.pid)"
           else
-            echo "dist/cortex/bus.js not found, skipping cortex start"
+            echo "dist/cortex/bus.js not found, attempting to build..."
+            npm run build || true
+            if [ -f dist/cortex/bus.js ]; then
+              nohup node ./dist/cortex/bus.js > cortex.log 2>&1 & echo $! > cortex.pid
+              echo "CORTEX started after build, pid=$(cat cortex.pid)"
+            else
+              echo "dist/cortex/bus.js still missing — attempting ts-node fallback"
+              # ts-node is available in devDependencies; use npx to run TypeScript directly
+              npx ts-node ./src/cortex/bus.ts > cortex.log 2>&1 & echo $! > cortex.pid
+              echo "CORTEX started via ts-node, pid=$(cat cortex.pid)"
+            fi
           fi
       - name: Show dist contents (diagnostic)
         run: |
