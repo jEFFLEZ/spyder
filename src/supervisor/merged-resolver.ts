@@ -26,7 +26,9 @@ function mergeResults(sup: ResolveResult, def: ResolveResult | null | undefined)
     gate,
     cmd: sup.cmd || (def && def.cmd) || undefined,
     args: sup.args ? [...sup.args] : (def && def.args ? [...def.args] : []),
-    cwd: sup.cwd ?? (def && (def.cwd ?? undefined))
+    cwd: sup.cwd !== null && sup.cwd !== undefined
+      ? sup.cwd
+      : (def && def.cwd !== null && def.cwd !== undefined ? def.cwd : undefined)
   };
   return out;
 }
