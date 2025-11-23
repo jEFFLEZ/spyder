@@ -1,4 +1,4 @@
-import npz from '../utils/npz';
+import * as npz from '../utils/npz';
 import type { ResolveResult } from '../utils/npz';
 import { listRunning } from './index';
 
@@ -20,10 +20,9 @@ export type ResolveOptions = { cwd?: string };
  * filling missing fields from default result.
  */
 function mergeResults(sup: ResolveResult, def: ResolveResult | null | undefined): ResolveResult {
-  const out: ResolveResult = { gate: sup.gate, cmd: sup.cmd, args: sup.args ? [...sup.args] : [], cwd: sup.cwd };
-  if ((!out.cmd || out.cmd.length === 0) && def && def.cmd) out.cmd = def.cmd;
-  if ((!out.args || out.args.length === 0) && def && def.args) out.args = [...def.args];
-  if ((!out.cwd || out.cwd.length === 0) && def && def.cwd) out.cwd = def.cwd;
+  // prefer supervisor gate but fall back to yellow if supervisor has no gate
+  const gate = sup && sup.gate ? sup.gate : (def && def.gate ? def.gate : 'yellow');
+  const out: ResolveResult = { gate, cmd: sup.cmd || (def && def.cmd) || undefined, args: sup.args ? [...sup.args] : (def && def.args ? [...def.args] : []), cwd: sup.cwd || (def && def.cwd) };
   return out;
 }
 
