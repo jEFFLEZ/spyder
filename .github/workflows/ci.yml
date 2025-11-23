@@ -26,6 +26,8 @@ jobs:
       QFLUSH_ENABLE_REDIS: '0'
       QFLUSH_DISABLE_COPILOT: '1'
       QFLUSH_TELEMETRY: '0'
+      # Provide test token to NPZ tests (populated from repo secret)
+      QFLUSH_TEST_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
