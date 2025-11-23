@@ -110,6 +110,26 @@ if (typeof require !== 'undefined' && require.main === module) {
     if (!argv.includes('--detached') && !argv.includes('--no-detach')) {
       console.log('qflush: starting daemon in detached mode by default (use --no-detach to run in-process)');
     }
+
+    const useCortex = argv.includes('--use-cortex') || process.env.QFLUSH_USE_CORTEX === '1';
+    if (useCortex) {
+      // Start Cortex bus in-process (replaces HTTP daemon)
+      console.log('qflush: starting CORTEX PNG bus in-process');
+      void import('./cortex/bus').then((m) => {
+        if (m && typeof m.startCortexBus === 'function') {
+          m.startCortexBus();
+        } else {
+          console.error('CORTEX module loaded but startCortexBus not found');
+          process.exit(1);
+        }
+      }).catch((err) => {
+        console.error('failed to start CORTEX bus', err);
+        process.exit(1);
+      });
+      // Keep process alive for bus
+      return;
+    }
+
     if (detached) {
       try {
         // attempt to use @funeste38/bat to spawn detached
