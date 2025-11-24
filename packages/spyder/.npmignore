@@ -1,0 +1,8 @@
+﻿.vs/
+node_modules/
+dist/
+*.tgz
+*.log
+*.raw
+test/
+tests/
