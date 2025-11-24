@@ -1,13 +1,13 @@
 {
   "name": "@funeste38/spyder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Spyder package for Funesterie — local assistant components",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist",
-    "lib",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p .",
@@ -21,11 +21,8 @@
   },
   "author": "jEFFLEZ",
   "license": "MIT",
-  "dependencies": {
-    "@funeste38/freeland": "*",
-    "@funeste38/nezlephant": "*"
-  },
-  "publishConfig": {
-    "access": "public"
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^18.0.0"
   }
 }

@@ -27,7 +27,7 @@ export class SpyderServer {
     return new Promise((resolve, reject) => {
       if (this.server) return reject(new Error('Server already started'));
 
-      this.server = net.createServer((socket: any) => {
+      const server = net.createServer((socket: any) => {
         socket.on('data', async (data: any) => {
           try {
             const buf = Uint8Array.from(data);
@@ -50,9 +50,11 @@ export class SpyderServer {
         socket.on('close', () => {});
       });
 
-      this.server.on('error', (err) => reject(err));
+      this.server = server;
 
-      this.server.listen(this.opts.port, this.opts.host, () => resolve());
+      server.on('error', (err: Error) => reject(err));
+
+      server.listen(this.opts.port, this.opts.host, () => resolve());
     });
   }
 
