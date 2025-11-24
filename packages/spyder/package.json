@@ -13,7 +13,7 @@
     "build": "tsc -p .",
     "prepare": "npm run build",
     "prepublishOnly": "npm run build",
-    "test": "echo \"no tests configured\" && exit 0"
+    "test": "vitest run --environment=node"
   },
   "repository": {
     "type": "git",
@@ -25,7 +25,19 @@
     "axios": "^1.4.0"
   },
   "devDependencies": {
+    "@types/node": "^18.0.0",
     "typescript": "^5.0.0",
-    "@types/node": "^18.0.0"
+    "vitest": "^0.34.6"
+  },
+  "vitest": {
+    "setupFiles": [
+      "./tests/setup.ts"
+    ],
+    "testTimeout": 10000,
+    "include": [
+      "tests/**/*.spec.ts",
+      "src/**/*.spec.ts",
+      "src/**/*.test.ts"
+    ]
   }
 }
