@@ -5,7 +5,7 @@ import { spawn, ChildProcess } from 'child_process';
 import fetch from '../utils/fetch';
 
 const PORT = process.env.QFLUSHD_PORT ? Number(process.env.QFLUSHD_PORT) : 4500;
-const BASE = `http://localhost:${PORT}`;
+const BASE = `http://127.0.0.1:${PORT}`;
 
 async function waitForJson(path: string, attempts = 20, delayMs = 250) {
   for (let i = 0; i < attempts; i++) {

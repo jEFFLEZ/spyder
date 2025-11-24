@@ -8,7 +8,7 @@ import * as net from 'net';
 import { describe, it, expect } from 'vitest';
 
 let DAEMON_PORT = 0;
-const DAEMON_URL = () => `http://localhost:${DAEMON_PORT}`;
+const DAEMON_URL = () => `http://127.0.0.1:${DAEMON_PORT}`;
 let daemonProc: any = null;
 
 function wait(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
@@ -46,8 +46,8 @@ async function startDaemon() {
   let healthy = false;
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      // try localhost on the port
-      const res = await fetch(`http://localhost:${DAEMON_PORT}/health`);
+      // try loopback on the port
+      const res = await fetch(`http://127.0.0.1:${DAEMON_PORT}/health`);
       if (res.ok) { healthy = true; break; }
     } catch (e) {}
     await wait(200);
