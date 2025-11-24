@@ -1,0 +1,93 @@
+name: Refactor Funesterie Engine
+
+on:
+  workflow_dispatch: {}
+
+# avoid running multiple concurrent refactor jobs and cancel in-progress when a new one is triggered
+concurrency:
+  group: refactor-funesterie-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  refactor:
+    # use a dedicated self-hosted runner labeled 'funesterie' to avoid contention
+    runs-on: [self-hosted, funesterie, Windows]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Node setup
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Build TypeScript
+        run: npx tsc -p .
+
+      - name: Install Spyder (optional)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          # try install spyder package from npm; fallback to GitHub if registry package unavailable
+          Write-Host 'Attempting to install @funeste38/spyder from npm (optional)'
+          npm i @funeste38/spyder --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'npm registry install failed (maybe package not published). Trying GitHub repo fallback...'
+            npm i git+https://github.com/jEFFLEZ/spyder.git --no-audit --no-fund
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host 'GitHub install also failed. Continuing without spyder.'
+            } else {
+              Write-Host 'Installed spyder from GitHub.'
+            }
+          } else {
+            Write-Host 'Installed spyder from npm registry.'
+          }
+
+      - name: Ensure Funesterie rules file
+        shell: pwsh
+        run: |
+          if (-not (Test-Path '.qflush')) { New-Item -ItemType Directory -Path .qflush | Out-Null }
+          $rules = @{ 
+            version = '1.0';
+            architecture = @{
+              core = 'src/core';
+              cortex = 'src/cortex';
+              utils = 'src/utils';
+              commands = 'src/commands';
+              legacy = 'src/legacy'
+            };
+            rules = @{
+              commands_no_logic = $true;
+              router_pure = $true;
+              apply_pure = $true;
+              no_direct_fs_in_cortex = $true;
+              logs_uniform = $true;
+              config_centralized = $true;
+              state_in_core = $true
+            };
+            refactor = @{
+              move_legacy = $true;
+              rebuild_imports = $true;
+              fix_paths = $true;
+              split_large_files = $true;
+              auto_generate_types = $true
+            }
+          }
+          $rules | ConvertTo-Json -Depth 5 | Set-Content -Path .qflush/funesterie.rules.json -Encoding UTF8
+
+      - name: Run refactor engine (TS)
+        run: npx ts-node --prefer-ts-exts scripts/refactor-funesterie.ts .qflush/funesterie.rules.json
+
+      - name: Run tests
+        run: npm test
+
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: auto/refactor-funesterie
+          commit-message: "refactor: applied Funesterie Rules via A11 Engine"
+          title: "Auto-refactor (Funesterie Engine)"
