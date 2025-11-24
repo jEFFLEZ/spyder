@@ -14,6 +14,7 @@ import * as fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { startService } from '../services';
+import net from 'node:net';
 
 export async function runStart(opts?: qflushOptions) {
   logger.info("qflush: starting modules...");
@@ -201,7 +202,33 @@ export async function runStart(opts?: qflushOptions) {
         }
       }
 
+      // If spyder's admin port is already in use, skip starting to avoid EADDRINUSE
+      async function isPortInUse(host: string, port: number) {
+        return new Promise<boolean>((resolve) => {
+          try {
+            const s = net.createConnection({ host, port, timeout: 400 }, () => {
+              s.destroy();
+              resolve(true);
+            });
+            s.on('error', () => resolve(false));
+            s.on('timeout', () => { try { s.destroy(); } catch {} ; resolve(false); });
+          } catch (e) { resolve(false); }
+        });
+      }
+
       // Use enhanced master flow which handles missing local bins and robust spawn
+      if (mod === 'spyder') {
+        const spyPort = 4001;
+        try {
+          const inUse = await isPortInUse('127.0.0.1', spyPort);
+          if (inUse) {
+            logger.warn(`Skipping start of spyder: admin port ${spyPort} already in use`);
+            return;
+          }
+        } catch (e) {
+          // ignore errors and attempt start
+        }
+      }
       const p = (opts?.modulePaths && opts.modulePaths[mod]) || paths[mod];
       const pkg = SERVICE_MAP[mod] && SERVICE_MAP[mod].pkg;
 
