@@ -27,6 +27,12 @@ Comportements runtime & variables d'environnement importants
 - `QFLUSH_DISABLE_COPILOT` / `QFLUSH_TELEMETRY` : désactiver la passerelle copilot/telemetry en runtime.
 - `VITEST` : si défini, `vitest.setup.js` tente de require et démarrer `dist/daemon/qflushd`.
 
+SPYDER admin port
+- `QFLUSH_SPYDER_ADMIN_PORT` : override du port admin que SPYDER expose (valeur entière). Utile en CI ou pour éviter des conflits locaux.
+- Fichier de configuration projet : `.qflush/spyder.config.json` peut contenir la clé `adminPort`. En alternative historique, `.qflush/logic-config.json` peut contenir `spyderAdminPort`.
+- Comportement par défaut : `4001` si aucune configuration fournie.
+- Note : `qflush start` persiste automatiquement `adminPort` dans `.qflush/spyder.config.json` si la clé manque, pour que d'autres composants puissent lire la valeur.
+
 Points d'intégration et tests
 - CI (workflow `CI`) : installe deps, compile (`npx tsc`) et démarre le daemon, puis exécute les tests. Les tests d'intégration vérifient les endpoints `/npz/checksum/*` et `/npz/rome-index`.
 - Si vous rencontrez des erreurs de type `dist/daemon/qflushd.js missing` : vérifier `tsconfig.json` (rootDir/include) puis `npm run build`.

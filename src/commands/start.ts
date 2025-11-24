@@ -16,6 +16,52 @@ import path from 'node:path';
 import { startService } from '../services';
 import net from 'node:net';
 
+// Read SPYDER admin port from config/env with sensible fallback
+function getSpyderAdminPort(): number {
+  try {
+    // 1) explicit env override
+    const envPort = process.env.QFLUSH_SPYDER_ADMIN_PORT;
+    if (envPort) {
+      const p = Number(envPort);
+      if (!Number.isNaN(p) && p > 0 && Number.isFinite(p)) return p;
+    }
+
+    // 2) .qflush/spyder.config.json (project-local config)
+    try {
+      const spyCfgPath = path.join(process.cwd(), '.qflush', 'spyder.config.json');
+      if (fs.existsSync(spyCfgPath)) {
+        const raw = fs.readFileSync(spyCfgPath, 'utf8');
+        const cfg = JSON.parse(raw || '{}');
+        if (cfg && typeof cfg.adminPort === 'number' && cfg.adminPort > 0) return cfg.adminPort;
+        if (cfg && typeof cfg.adminPort === 'string') {
+          const p = Number(cfg.adminPort);
+          if (!Number.isNaN(p) && p > 0) return p;
+        }
+      }
+    } catch (_) {
+      // ignore parsing errors
+    }
+
+    // 3) .qflush/logic-config.json fallback (older config location)
+    try {
+      const logicCfg = path.join(process.cwd(), '.qflush', 'logic-config.json');
+      if (fs.existsSync(logicCfg)) {
+        const raw2 = fs.readFileSync(logicCfg, 'utf8');
+        const lc = JSON.parse(raw2 || '{}');
+        if (lc && (typeof lc.spyderAdminPort === 'number')) return lc.spyderAdminPort;
+        if (lc && (typeof lc.spyderAdminPort === 'string')) {
+          const p = Number(lc.spyderAdminPort);
+          if (!Number.isNaN(p) && p > 0) return p;
+        }
+      }
+    } catch (_) {}
+
+  } catch (_) {}
+
+  // default
+  return 4001;
+}
+
 export async function runStart(opts?: qflushOptions) {
   logger.info("qflush: starting modules...");
 
@@ -218,12 +264,42 @@ export async function runStart(opts?: qflushOptions) {
 
       // Use enhanced master flow which handles missing local bins and robust spawn
       if (mod === 'spyder') {
-        const spyPort = 4001;
+        const spyPort = getSpyderAdminPort();
         try {
           const inUse = await isPortInUse('127.0.0.1', spyPort);
           if (inUse) {
             logger.warn(`Skipping start of spyder: admin port ${spyPort} already in use`);
             return;
+          }
+          // Persist chosen admin port to project .qflush/spyder.config.json when missing.
+          try {
+            const qflushDir = path.join(process.cwd(), '.qflush');
+            if (!fs.existsSync(qflushDir)) fs.mkdirSync(qflushDir, { recursive: true });
+            const spyCfgPath = path.join(qflushDir, 'spyder.config.json');
+            let needWrite = false;
+            let spyCfg: any = {};
+            if (fs.existsSync(spyCfgPath)) {
+              try {
+                spyCfg = JSON.parse(fs.readFileSync(spyCfgPath, 'utf8') || '{}');
+              } catch (_) { spyCfg = {}; }
+              if (!spyCfg.adminPort) {
+                spyCfg.adminPort = spyPort;
+                needWrite = true;
+              }
+            } else {
+              spyCfg = { adminPort: spyPort };
+              needWrite = true;
+            }
+            if (needWrite) {
+              try {
+                fs.writeFileSync(spyCfgPath, JSON.stringify(spyCfg, null, 2), 'utf8');
+                logger.info(`Wrote .qflush/spyder.config.json with adminPort ${spyPort}`);
+              } catch (e) {
+                logger.warn(`Failed to write .qflush/spyder.config.json: ${e}`);
+              }
+            }
+          } catch (e) {
+            logger.warn(`Failed to persist spyder admin port: ${e}`);
           }
         } catch (e) {
           // ignore errors and attempt start
