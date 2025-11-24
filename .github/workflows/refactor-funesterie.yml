@@ -19,6 +19,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Build TypeScript
+        run: npx tsc -p .
+
       - name: Run refactor engine
         run: node -e "require('./scripts/refactor-funesterie.js')('.qflush/funesterie.rules.json')"
 
