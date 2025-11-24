@@ -3,6 +3,7 @@
     const path = require('path');
     const child_process = require('child_process');
     const http = require('http');
+    const fs = require('fs');
 
     // initialize token from QFLUSH_TEST_TOKEN if not set
     if (!process.env.QFLUSH_TOKEN && process.env.QFLUSH_TEST_TOKEN) {
@@ -75,36 +76,34 @@
       console.warn('qflushd health check failed or timed out, proceeding anyway:', String(e));
     }
 
-    const vitestArgs = ['vitest', 'run', '--reporter', 'verbose', '--testTimeout', '60000'];
-    const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+    const vitestArgs = ['run', '--reporter', 'verbose', '--testTimeout', '60000'];
+    const vitestBin = path.join(process.cwd(), 'node_modules', '.bin', process.platform === 'win32' ? 'vitest.cmd' : 'vitest');
+
+    if (!fs.existsSync(vitestBin)) {
+      console.error('[QFLUSH] vitest binary not found at', vitestBin);
+      console.error('[QFLUSH] Please ensure devDependencies are installed (npm ci) and vitest is available');
+      try { if (typeof stop === 'function') await stop(); } catch (e) {}
+      process.exit(1);
+    }
+
+    console.log('[QFLUSH] Running Vitest directly:', vitestBin);
 
     let runner;
-    try {
-      // attempt spawn without shell
-      runner = child_process.spawn(npxCmd, vitestArgs, { stdio: 'inherit' });
-    } catch (spawnErr) {
-      console.warn('spawn failed, falling back to shell exec:', String(spawnErr));
-      try {
-        // fallback to shell execSync which is more tolerant on Windows in some environments
-        const cmd = `${process.platform === 'win32' ? 'npx' : 'npx'} ${vitestArgs.map(a => String(a)).join(' ')}`;
-        child_process.execSync(cmd, { stdio: 'inherit', shell: true });
-        // execSync will block until finished; stop server and exit normally
-        try { if (typeof stop === 'function') await stop(); } catch (e) { console.error('stop failed', e); }
-        process.exit(0);
-      } catch (execErr) {
-        console.error('fallback exec failed', execErr);
-        process.exit(1);
-      }
+    if (process.platform === 'win32') {
+      // Explicitly invoke cmd.exe /c <vitest.cmd> args to avoid spawn EINVAL on Windows
+      const cmd = 'cmd.exe';
+      const cmdArgs = ['/c', vitestBin].concat(vitestArgs);
+      runner = child_process.spawn(cmd, cmdArgs, { stdio: 'inherit' });
+    } else {
+      runner = child_process.spawn(vitestBin, vitestArgs, { stdio: 'inherit', shell: false });
     }
 
-    if (runner) {
-      runner.on('exit', async (code) => {
-        console.log('vitest exited with', code, 'stopping qflushd...');
-        try { if (typeof stop === 'function') await stop(); } catch (e) { console.error('stop failed', e); }
-        process.exit(code ?? 0);
-      });
-      runner.on('error', (err) => { console.error('vitest spawn failed', err); process.exit(1); });
-    }
+    runner.on('exit', async (code) => {
+      console.log('vitest exited with', code, 'stopping qflushd...');
+      try { if (typeof stop === 'function') await stop(); } catch (e) { console.error('stop failed', e); }
+      process.exit(code ?? 0);
+    });
+    runner.on('error', (err) => { console.error('vitest spawn failed', err); try { if (typeof stop === 'function') stop(); } catch (_) {}; process.exit(1); });
   } catch (e) {
     console.error('run failed', e);
     process.exit(1);
