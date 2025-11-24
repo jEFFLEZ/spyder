@@ -1,3 +1,45 @@
+## SPYDER admin port and CI examples
+
+When running `qflush start` in CI or locally you may encounter `EADDRINUSE` if SPYDER's admin port is already bound on the runner. You can control the admin port using one of the following options (priority order):
+
+- Environment variable: `QFLUSH_SPYDER_ADMIN_PORT=12345`
+- Project config: `.qflush/spyder.config.json` — set the key `adminPort` to the desired port.
+- Legacy config: `.qflush/logic-config.json` — set `spyderAdminPort`.
+
+If none are provided QFLUSH defaults to port `4001`. The `qflush start` command will persist the chosen port into `.qflush/spyder.config.json` when the file is missing so other components can reuse it.
+
+Example `.env` snippet to add to your CI or local env file:
+
+```
+# SPYDER admin port (override to avoid conflicts)
+QFLUSH_SPYDER_ADMIN_PORT=4022
+# Disable external webhooks during CI
+QFLUSH_DISABLE_WEBHOOK=1
+# Test token used by test helper
+QFLUSH_TEST_TOKEN=ci-test-token-placeholder
+```
+
+Example GitHub Actions job snippet (set env before running tests):
+
+```yaml
+env:
+  QFLUSH_SPYDER_ADMIN_PORT: '4022'
+  QFLUSH_DISABLE_WEBHOOK: '1'
+  QFLUSH_TEST_TOKEN: '${{ secrets.QFLUSH_TEST_TOKEN }}'
+
+steps:
+  - uses: actions/checkout@v4
+  - uses: actions/setup-node@v4
+    with:
+      node-version: '20'
+  - name: Install deps
+    run: npm ci --no-audit --no-fund
+  - name: Build
+    run: npm run build
+  - name: Run tests
+    run: npm test
+```
+If you want, I can add these entries to `README.md` too.
 Quick start checklist — QFLUSH (local, NO-REDIS / NO-COPILOT)
 
 This file contains a short checklist and copy-paste commands to get QFLUSH running locally in the "NO-REDIS / NO-COPILOT" safe mode used by this repo.
