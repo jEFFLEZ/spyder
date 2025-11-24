@@ -307,6 +307,13 @@ export async function startServer(port?: number) {
       });
 
       srv.on('error', (err) => {
+        try {
+          const code = (err && (err as any).code) ? (err as any).code : null;
+          if (code === 'EADDRINUSE') {
+            try { console.warn('[qflushd] port already in use, assuming existing server'); } catch (_) {}
+            return resolve({ ok: true, port: p, reused: true });
+          }
+        } catch (e) {}
         reject(err);
       });
     } catch (err) {
