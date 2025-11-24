@@ -3,9 +3,16 @@ name: Refactor Funesterie Engine
 on:
   workflow_dispatch: {}
 
+# avoid running multiple concurrent refactor jobs and cancel in-progress when a new one is triggered
+concurrency:
+  group: refactor-funesterie-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   refactor:
-    runs-on: [self-hosted, Windows]
+-    runs-on: [self-hosted, Windows]
++    # use a dedicated self-hosted runner labeled 'funesterie' to avoid contention
++    runs-on: [self-hosted, funesterie, Windows]
 
     steps:
       - uses: actions/checkout@v4
