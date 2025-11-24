@@ -79,7 +79,7 @@ export function listAvailableServices() {
 
 function ensureQflushDir() {
   const dir = join(process.cwd(), '.qflush');
-  try { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); } catch (e) {}
+  try { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); } catch (e) { logger.warn(`[services] ensureQflushDir failed: ${String(e)}`); }
   return dir;
 }
 
@@ -170,7 +170,7 @@ export async function jokerWipe() {
   try {
     // non-portable: attempt to kill by listing process.children if available
     // fallback: no-op here, supervisor mode would handle SIGKILL
-  } catch {}
+  } catch (e) { logger.warn(`[services] attempt to kill child processes failed: ${String(e)}`); }
 
   // clear NPZ storage files and logs
   try {

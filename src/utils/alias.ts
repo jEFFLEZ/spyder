@@ -61,11 +61,11 @@ export function importUtil(name: string): any {
           const resolved = require.resolve(localName, { paths: [spy] });
           const m = require(resolved);
           if (m) return (m && m.default) || m;
-        } catch (e) {}
+        } catch (e) { console.warn('[alias] require.resolve from spyder failed', String(e)); }
       }
     }
   } catch (e) {
-    // ignore
+    console.warn('[alias] resolvePaths check failed', String(e));
   }
 
   // If name was an alias like @utils/foo, try local src/utils/<foo>
@@ -73,7 +73,7 @@ export function importUtil(name: string): any {
     try {
       const local = tryRequireVariants(path.join(__dirname, localName));
       if (local) return local;
-    } catch (e) {}
+    } catch (e) { console.warn('[alias] tryRequireVariants local failed', String(e)); }
   }
 
   // fallback: if a relative path or module name was passed, try requiring directly
@@ -81,13 +81,13 @@ export function importUtil(name: string): any {
     // try direct file/module
     const m1 = tryRequire(name);
     if (m1) return (m1 && m1.default) || m1;
-  } catch (e) {}
+  } catch (e) { console.warn('[alias] tryRequire direct failed', String(e)); }
 
   // last resort: require by name (could be from node_modules)
   try {
     const m = require(name);
     return (m && m.default) || m;
-  } catch (e) {}
+  } catch (e) { console.warn('[alias] final require failed', String(e)); }
 
   return undefined;
 }

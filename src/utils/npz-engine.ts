@@ -37,6 +37,7 @@ function load() {
     }
   } catch (e) {
     store = {};
+    console.warn('[npz-engine] load failed, starting with empty store', String(e));
   }
 }
 
@@ -44,7 +45,9 @@ function persist() {
   try {
     ensureDir();
     fs.writeFileSync(ENGINE_FILE, JSON.stringify(store, null, 2), 'utf8');
-  } catch (e) {}
+  } catch (e) {
+    console.warn('[npz-engine] persist failed', String(e));
+  }
 }
 
 function applyDecay() {
@@ -72,7 +75,7 @@ load();
 
 // schedule periodic decay in-memory (best-effort)
 setInterval(() => {
-  try { applyDecay(); } catch (e) {}
+  try { applyDecay(); } catch (e) { console.warn('[npz-engine] applyDecay errored', String(e)); }
 }, DECAY_INTERVAL_MS);
 
 /**

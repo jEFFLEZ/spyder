@@ -25,7 +25,7 @@ function writeSafeModes(mode: string) {
     const p = path.join(dir, 'safe-modes.json');
     const obj = { mode, updatedAt: new Date().toISOString() };
     fs.writeFileSync(p, JSON.stringify(obj, null, 2), 'utf8');
-  } catch (e) {}
+  } catch (e) { console.warn('[qflushd] writeSafeModes failed:', String(e)); }
 }
 
 // new helper: compute flexible checksum for a workspace file path
@@ -171,7 +171,7 @@ export async function startServer(port?: number) {
                     const rec: any = { id, checksum, storedAt: Date.now() };
                     if (ttlMs) rec.expiresAt = Date.now() + Number(ttlMs);
                     db[id] = rec;
-                    try { fs.writeFileSync(dbFile, JSON.stringify(db, null, 2), 'utf8'); } catch (e) {}
+                    try { fs.writeFileSync(dbFile, JSON.stringify(db, null, 2), 'utf8'); } catch (e) { console.warn('[qflushd] failed writing checksums db:', String(e)); }
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ success: true, id, checksum }));
                     return;
@@ -228,7 +228,7 @@ export async function startServer(port?: number) {
                     }
                     if (rec.expiresAt && Date.now() > rec.expiresAt) {
                       delete db[id];
-                      try { fs.writeFileSync(dbFile, JSON.stringify(db, null, 2), 'utf8'); } catch (e) {}
+                      try { fs.writeFileSync(dbFile, JSON.stringify(db, null, 2), 'utf8'); } catch (e) { console.warn('[qflushd] failed writing checksums db:', String(e)); }
                       res.writeHead(404, { 'Content-Type': 'application/json' });
                       res.end(JSON.stringify({ success: false, error: 'expired' }));
                       return;
@@ -268,7 +268,7 @@ export async function startServer(port?: number) {
                   for (const k of Object.keys(db)) {
                     if (db[k] && db[k].expiresAt && now > db[k].expiresAt) delete db[k];
                   }
-                  try { fs.writeFileSync(dbFile, JSON.stringify(db, null, 2), 'utf8'); } catch (e) {}
+                  try { fs.writeFileSync(dbFile, JSON.stringify(db, null, 2), 'utf8'); } catch (e) { console.warn('[qflushd] failed writing checksums db:', String(e)); }
                   const items = Object.values(db);
                   res.writeHead(200, { 'Content-Type': 'application/json' });
                   res.end(JSON.stringify({ success: true, count: items.length, items }));
@@ -278,12 +278,13 @@ export async function startServer(port?: number) {
                 // DELETE /npz/checksum/clear
                 if (method === 'DELETE' && parsed.pathname === '/npz/checksum/clear') {
                   db = {};
-                  try { fs.writeFileSync(dbFile, JSON.stringify(db, null, 2), 'utf8'); } catch (e) {}
+                  try { fs.writeFileSync(dbFile, JSON.stringify(db, null, 2), 'utf8'); } catch (e) { console.warn('[qflushd] failed writing checksums db:', String(e)); }
                   res.writeHead(200, { 'Content-Type': 'application/json' });
                   res.end(JSON.stringify({ success: true }));
                   return;
                 }
               } catch (e) {
+                console.warn('[qflushd] checksum handler error:', String(e));
                 // fallthrough to not found
               }
             }
@@ -291,7 +292,8 @@ export async function startServer(port?: number) {
             res.end(JSON.stringify({ error: 'not_found' }));
           });
         } catch (e) {
-          try { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: String(e) })); } catch (_) {}
+          try { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: String(e) })); } catch (_) { console.warn('[qflushd] failed to write 500 response'); }
+          console.warn('[qflushd] server handler error:', String(e));
         }
       });
 
@@ -302,13 +304,13 @@ export async function startServer(port?: number) {
         try {
           const addr = srv.address();
           console.warn('[qflushd] listening', addr);
-        } catch (e) {}
+        } catch (e) { console.warn('[qflushd] failed to get server address:', String(e)); }
         resolve({ ok: true, port: p });
       });
 
       srv.on('error', (err: any) => {
         // If address already in use, attempt to probe existing server on the same port
-        if (err && err.code === 'EADDRINUSE') {
+        if (err?.code === 'EADDRINUSE') {
           try {
             const probe = http.request({ hostname: '127.0.0.1', port: p, path: '/health', method: 'GET', timeout: 1000 }, (res) => {
               const ok = res.statusCode && res.statusCode >= 200 && res.statusCode < 300;
@@ -324,6 +326,7 @@ export async function startServer(port?: number) {
             probe.end();
             return;
           } catch (e) {
+            console.warn('[qflushd] probe error while handling EADDRINUSE:', String(e));
             // If probing throws, fallback to treating the port as reused
             return resolve({ ok: true, port: p, reused: true });
           }
@@ -352,7 +355,14 @@ export async function stopServer() {
 export default { startServer, stopServer };
 
 // If executed directly, start the server on provided port
-if (require && require.main === module) {
+if (require?.main === module) {
   const port = process.env.QFLUSHD_PORT ? Number(process.env.QFLUSHD_PORT) : 4500;
-  startServer(port).then(() => console.warn('[qflushd] started server on', port)).catch((e) => console.error('[qflushd] failed to start', e));
+  (async () => {
+    try {
+      await startServer(port);
+      console.warn('[qflushd] started server on', port);
+    } catch (e) {
+      console.error('[qflushd] failed to start', e);
+    }
+  })();
 }

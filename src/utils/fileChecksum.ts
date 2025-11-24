@@ -39,20 +39,22 @@ export async function flexibleChecksumBuffer(buf: Buffer | Uint8Array): Promise<
           const pngCodec = require('../cortex/pngCodec');
           if (pngCodec && typeof pngCodec.decodeCortexPacketFromPng === 'function') {
             const pkt = await pngCodec.decodeCortexPacketFromPng(tmp);
-            try { fs.unlinkSync(tmp); } catch (e) {}
+            try { fs.unlinkSync(tmp); } catch (e) { console.warn('[fileChecksum] unlink tmp failed', String(e)); }
             // use payload or whole packet JSON
             const target = pkt && pkt.payload ? pkt.payload : pkt;
             const json = JSON.stringify(target);
             return xorChecksum(Buffer.from(json, 'utf8'));
           }
         } catch (e) {
-          try { fs.unlinkSync(tmp); } catch (e2) {}
+          try { fs.unlinkSync(tmp); } catch (e2) { console.warn('[fileChecksum] unlink tmp failed', String(e2)); }
+          console.warn('[fileChecksum] png decode attempt failed', String(e));
         }
       } catch (e) {
-        // ignore and fallback
+        // ignore and fallback, but record for diagnostics
+        console.warn('[fileChecksum] png detection fallback', String(e));
       }
     }
-  } catch (e) {}
+  } catch (e) { console.warn('[fileChecksum] png detection outer error', String(e)); }
 
   // 2) Cortex binary packet (try parse via src/cortex/codec)
   try {
@@ -66,9 +68,10 @@ export async function flexibleChecksumBuffer(buf: Buffer | Uint8Array): Promise<
         }
       } catch (e) {
         // not a cortex binary packet, continue
+        console.warn('[fileChecksum] codec decode failed', String(e));
       }
     }
-  } catch (e) {}
+  } catch (e) { console.warn('[fileChecksum] cortex codec require failed', String(e)); }
 
   // 3) fallback to text normalization checksum
   try {
