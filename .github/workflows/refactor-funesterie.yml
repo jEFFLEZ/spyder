@@ -30,10 +30,22 @@ jobs:
 
       - name: Install Spyder (optional)
         shell: pwsh
+        continue-on-error: true
         run: |
-          # try install spyder package locally; allow failure in CI
-          echo 'Attempting to install @funeste38/spyder (optional)';
-          npm i @funeste38/spyder --no-audit --no-fund || echo 'spyder install failed or not available, continuing';
+          # try install spyder package from npm; fallback to GitHub if registry package unavailable
+          Write-Host 'Attempting to install @funeste38/spyder from npm (optional)'
+          npm i @funeste38/spyder --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'npm registry install failed (maybe package not published). Trying GitHub repo fallback...'
+            npm i git+https://github.com/jEFFLEZ/spyder.git --no-audit --no-fund
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host 'GitHub install also failed. Continuing without spyder.'
+            } else {
+              Write-Host 'Installed spyder from GitHub.'
+            }
+          } else {
+            Write-Host 'Installed spyder from npm registry.'
+          }
 
       - name: Ensure Funesterie rules file
         shell: pwsh
